@@ -71,7 +71,10 @@ impl Board {
             }
             (1u8, 9u8, board)
         };
-        ret.push_str(&format!(" --+---+---+---+---+---+---+---+---+\n {}", row_num));
+        ret.push_str(&format!(
+            " --+---+---+---+---+---+---+---+---+\n {}",
+            row_num
+        ));
         for row in board.iter() {
             if let Color::White = color {
                 row_num -= 1;
