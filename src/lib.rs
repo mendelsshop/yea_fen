@@ -136,7 +136,7 @@ pub enum Color {
     Black,
     White,
 }
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Castling {
     None,
     KingSide,
@@ -156,9 +156,14 @@ pub struct GameState {
     /// increments after either white or black go
     half_move_clock: usize,
     /// castling moves available
-    castling_moves: [Colored<Castling>; 2],
+    castling_moves: CastlingOptions,
     /// En_passant moves available, vec of row and column of En_passant(s)
-    en_passant: Vec<(usize, usize)>,
+    en_passant: Option<Pos>,
+}
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct CastlingOptions {
+    black: Castling,
+    white: Castling,
 }
 
 impl FromStr for GameState {
@@ -180,16 +185,59 @@ impl FromStr for GameState {
             "b" => Color::Black,
             _ => return Err("invalid color to go")?,
         };
-        let castling_moves = match config[1] {
-            "-" => [
-                Colored::White(Castling::None),
-                Colored::Black(Castling::None),
-            ],
-            _ => todo!(),
+        let mut castling_moves = CastlingOptions {
+            black: Castling::None,
+            white: Castling::None,
+        };
+        match config[1] {
+            "-" => {}
+            castlings => {
+                for castling in castlings.chars() {
+                    match castling {
+                        'K' => {
+                            castling_moves.white = if castling_moves.white == Castling::QueenSide
+                                || castling_moves.white == Castling::Both
+                            {
+                                Castling::Both
+                            } else {
+                                Castling::KingSide
+                            }
+                        }
+                        'Q' => {
+                            castling_moves.white = if castling_moves.white == Castling::KingSide
+                                || castling_moves.white == Castling::Both
+                            {
+                                Castling::Both
+                            } else {
+                                Castling::QueenSide
+                            }
+                        }
+                        'k' => {
+                            castling_moves.black = if castling_moves.black == Castling::QueenSide
+                                || castling_moves.black == Castling::Both
+                            {
+                                Castling::Both
+                            } else {
+                                Castling::KingSide
+                            }
+                        }
+                        'q' => {
+                            castling_moves.black = if castling_moves.black == Castling::KingSide
+                                || castling_moves.black == Castling::Both
+                            {
+                                Castling::Both
+                            } else {
+                                Castling::QueenSide
+                            }
+                        }
+                        _ => return Err("invalid castling move")?,
+                    }
+                }
+            }
         };
         let en_passant = match config[2] {
-            "-" => vec![],
-            _ => todo!(),
+            "-" => None,
+            pos => Pos::from_str(pos).ok(),
         };
         let half_move_clock = config[3].parse()?;
         let full_move_clock = config[4].parse()?;
@@ -202,6 +250,63 @@ impl FromStr for GameState {
             castling_moves,
             en_passant,
         })
+    }
+}
+#[derive(Copy, Clone, Debug)]
+pub struct Pos {
+    x: u8,
+    y: u8,
+}
+
+impl FromStr for Pos {
+    type Err = Box<dyn Error>;
+    /// Y can be a-h, and X can 1-8
+    #[allow(clippy::cast_possible_truncation)]
+    // when wa cast u32 to u8, we know that the u32 is less than or equal to 8
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut ret = Self { x: 0, y: 0 };
+        if s.chars().count() != 2 {
+            return Err("invalid length for position string")?;
+        }
+        for char in s.chars() {
+            match char {
+                char if char.is_ascii_alphabetic() => {
+                    if ('a'..='h').contains(&char) {
+                        ret.x = turn_char_to_u8(char)?;
+                    } else {
+                        return Err(format!("invalid postion string {}", char))?;
+                    }
+                }
+                char if char.is_ascii_digit() => {
+                    let char = char
+                        .to_digit(10)
+                        .map_or_else(|| Err("couldnt parse digit")?, Ok::<u32, Self::Err>)?;
+                    if (1..=8).contains(&char) {
+                        ret.y = char as u8;
+                    } else {
+                        return Err(format!("invalid postion string {}", char))?;
+                    }
+                }
+                char => {
+                    return Err(format!("invalid postion string {}", char))?;
+                }
+            }
+        }
+        Ok(ret)
+    }
+}
+
+fn turn_char_to_u8(charr: char) -> Result<u8, Box<dyn Error>> {
+    match charr {
+        'a' => Ok(1),
+        'b' => Ok(2),
+        'c' => Ok(3),
+        'd' => Ok(4),
+        'e' => Ok(5),
+        'f' => Ok(6),
+        'g' => Ok(7),
+        'h' => Ok(8),
+        other => Err(format!("invalid char {}", other))?,
     }
 }
 
@@ -293,6 +398,16 @@ mod tests {
         assert!(gamestate.is_ok());
         let gamestate = gamestate.unwrap();
         // println!("{}", gamestate.board);
+        println!("{}", gamestate.board.format_with_color(Color::Black));
+        println!("{}", gamestate.board.format_with_color(Color::White));
+    }
+    #[test]
+    fn parse_with_en_pessant() {
+        let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2";
+        let gamestate = GameState::from_str(fen);
+        assert!(gamestate.is_ok());
+        let gamestate = gamestate.unwrap();
+        println!("{:?}", gamestate);
         println!("{}", gamestate.board.format_with_color(Color::Black));
         println!("{}", gamestate.board.format_with_color(Color::White));
     }
