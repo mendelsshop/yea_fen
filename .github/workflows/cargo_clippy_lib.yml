@@ -1,0 +1,15 @@
+on: 
+  push:
+  workflow_dispatch:
+name: Clippy check + test
+jobs:
+  clippy_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: |
+          rustup toolchain install nightly
+          rustup +nightly component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

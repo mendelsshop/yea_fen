@@ -1,0 +1,19 @@
+name: publish to crates.io
+
+on:
+  release:
+    types: [published, released, prereleased]
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  Publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@stable
+      - run: |
+          cargo publish --token ${{ secrets.CRATES_TOKEN }} 
