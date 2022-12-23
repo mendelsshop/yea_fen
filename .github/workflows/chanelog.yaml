@@ -8,7 +8,7 @@ jobs:
     name: Test the git-cliff changelog generator action
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Generate a changelog
@@ -23,7 +23,7 @@ jobs:
         run: cat "${{ steps.git-cliff.outputs.changelog }}"
 
       - name: Commit the changelog
-        uses: EndBug/add-and-commit@v7
+        uses: EndBug/add-and-commit@v9
         with:
           message: "update changelog"
           add: ${{ steps.git-cliff.outputs.changelog }}
