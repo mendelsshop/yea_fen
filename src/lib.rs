@@ -1,3 +1,6 @@
+#![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
+#![deny(clippy::use_self, rust_2018_idioms)]
+
 use std::{error::Error, fmt, str::FromStr};
 
 pub trait PieceMove {}
@@ -66,7 +69,7 @@ impl Board {
             ret.push_str("   | h | g | f | e | d | c | b | a |\n");
             let mut board = self.board;
             board.reverse();
-            for row in board.iter_mut() {
+            for row in &mut board.iter_mut() {
                 row.reverse();
             }
             (1u8, 9u8, board)
@@ -75,13 +78,13 @@ impl Board {
             " --+---+---+---+---+---+---+---+---+\n {}",
             row_num
         ));
-        for row in board.iter() {
+        for row in board {
             if let Color::White = color {
                 row_num -= 1;
             } else {
                 row_num += 1;
             }
-            for cell in row.iter() {
+            for cell in row {
                 ret.push_str(&format!(" | {}", cell));
             }
             ret.push_str(&format!(
@@ -109,12 +112,12 @@ impl FromStr for Board {
             return Err("Invalid board length")?;
         }
         let board_rows = board.iter().map(|row| parse_fen_row(row));
-        if let Some(error) = board_rows.clone().find(|res| res.is_err()) {
+        if let Some(error) = board_rows.clone().find(Result::is_err) {
             return Err(error.expect_err("could not retrive error message"))?;
         }
         Ok(Self {
             board: board_rows
-                .filter_map(|x| x.ok())
+                .filter_map(Result::ok)
                 .collect::<Vec<Row>>()
                 .try_into()
                 .map_err(|_| "number of cloumns to less than or greatee than 8")?,
@@ -191,7 +194,7 @@ impl FromStr for GameState {
         let half_move_clock = config[3].parse()?;
         let full_move_clock = config[4].parse()?;
 
-        Ok(GameState {
+        Ok(Self {
             board,
             active_color,
             full_move_clock,
@@ -211,6 +214,9 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
         return Err("row is too long")?;
     }
     cells.for_each(|char| {
+        if piece_count > 8 {
+            return;
+        }
         match char {
             'P' => ret[piece_count] = Colored::White(Piece::Pawn),
             'p' => ret[piece_count] = Colored::Black(Piece::Pawn),
@@ -227,10 +233,10 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
             num if num.is_ascii_digit() => {
                 match num.to_digit(10) {
                     Some(digit) => {
-                        if !(1..=8).contains(&digit) {
-                            error = format!("{} is not a valid fen board character", num)
-                        } else {
+                        if (1..=8).contains(&digit) {
                             piece_count += digit as usize;
+                        } else {
+                            error = format!("{} is not a valid fen board character", num);
                         }
                     }
                     None => error = format!("{} is not a valid fen board character", num),
@@ -239,7 +245,7 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
             }
             other => error = format!("{} is not a valid fen board character", other),
         }
-        piece_count += 1
+        piece_count += 1;
     });
     if !error.is_empty() {
         return Err(error)?;
