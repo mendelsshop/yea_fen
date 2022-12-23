@@ -71,7 +71,7 @@ impl Board {
             }
             (1u8, 9u8, board)
         };
-        ret.push_str(&format!(" --+---+---+---+---+---+---+---+---+\n {row_num}"));
+        ret.push_str(&format!(" --+---+---+---+---+---+---+---+---+\n {}", row_num));
         for row in board.iter() {
             if let Color::White = color {
                 row_num -= 1;
@@ -86,7 +86,7 @@ impl Board {
                 if row_num == min_max {
                     String::from(" ")
                 } else {
-                    format!("{row_num}")
+                    format!("{}", row_num)
                 }
             ));
         }
@@ -225,16 +225,16 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
                 match num.to_digit(10) {
                     Some(digit) => {
                         if !(1..=8).contains(&digit) {
-                            error = format!("{num} is not a valid fen board character")
+                            error = format!("{} is not a valid fen board character", num)
                         } else {
                             piece_count += digit as usize;
                         }
                     }
-                    None => error = format!("{num} is not a valid fen board character"),
+                    None => error = format!("{} is not a valid fen board character", num),
                 }
                 return;
             }
-            other => error = format!("{other} is not a valid fen board character"),
+            other => error = format!("{} is not a valid fen board character", other),
         }
         piece_count += 1
     });
