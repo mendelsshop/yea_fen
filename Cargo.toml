@@ -1,0 +1,9 @@
+[package]
+name = "yea_fen"
+version = "0.1.0"
+edition = "2021"
+description = "Yet another FEN(Forsyth-Edwards notation) parser/library"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
