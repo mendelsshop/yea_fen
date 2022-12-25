@@ -12,7 +12,17 @@ macro_rules! impl_default {
         }
     };
 }
-pub trait PieceMove {}
+
+impl IntoIterator for Board  {
+    type Item = Row;
+
+    type IntoIter = std::array::IntoIter<Row, 8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.board.into_iter()
+    }
+
+}
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Piece {
     King,
@@ -26,7 +36,6 @@ pub enum Piece {
 pub enum Colored<A> {
     Black(A),
     White(A),
-    // None,
 }
 
 impl fmt::Display for Colored<Piece> {
