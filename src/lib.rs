@@ -229,6 +229,30 @@ impl GameState {
             en_passant: None,
         }
     }
+
+    pub fn get_board(&self) -> &Board {
+        &self.board
+    }
+
+    pub fn get_active_color(&self) -> Color {
+        self.active_color
+    }
+
+    pub fn get_full_move_clock(&self) -> usize {
+        self.full_move_clock
+    }
+
+    pub fn get_half_move_clock(&self) -> usize {
+        self.half_move_clock
+    }
+
+    pub fn get_castling_moves(&self) -> &CastlingOptions {
+        &self.castling_moves
+    }
+
+    pub fn get_en_passant(&self) -> Option<Pos> {
+        self.en_passant
+    }
 }
 impl_default!(GameState);
 impl FromStr for GameState {
