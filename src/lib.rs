@@ -17,7 +17,7 @@ pub enum Piece {
 pub enum Colored<A> {
     Black(A),
     White(A),
-    None,
+    // None,
 }
 
 impl fmt::Display for Colored<Piece> {
@@ -43,15 +43,14 @@ impl fmt::Display for Colored<Piece> {
                     Piece::Queen => write!(f, "♛"),
                     Piece::King => write!(f, "♚"),
                 }
-            }
-            Self::None => {
-                write!(f, " ")
-            }
+            } // Self::None => {
+              //     write!(f, " ")
+              // }
         }
     }
 }
 
-type Row = [Colored<Piece>; 8];
+type Row = [Option<Colored<Piece>>; 8];
 
 #[derive(Copy, Clone, Debug)]
 pub struct Board {
@@ -85,7 +84,10 @@ impl Board {
                 row_num += 1;
             }
             for cell in row {
-                ret.push_str(&format!(" | {}", cell));
+                ret.push_str(&format!(
+                    " | {}",
+                    cell.map_or_else(|| String::from(" "), |c| format!("{}", c))
+                ));
             }
             ret.push_str(&format!(
                 " |\n --+---+---+---+---+---+---+---+---+\n {}",
@@ -111,16 +113,13 @@ impl FromStr for Board {
         if board.len() != 8 {
             return Err("Invalid board length")?;
         }
-        let board_rows = board.iter().map(|row| parse_fen_row(row));
-        if let Some(error) = board_rows.clone().find(Result::is_err) {
-            return Err(error.expect_err("could not retrive error message"))?;
-        }
         Ok(Self {
-            board: board_rows
-                .filter_map(Result::ok)
-                .collect::<Vec<Row>>()
+            board: board
+                .iter()
+                .map(|row| parse_fen_row(row))
+                .collect::<Result<Vec<Row>, _>>()?
                 .try_into()
-                .map_err(|_| "number of cloumns to less than or greatee than 8")?,
+                .map_err(|_| "number of cloumns to less than or greater than 8")?,
         })
     }
 }
@@ -143,7 +142,8 @@ pub enum Castling {
     QueenSide,
     Both,
 }
-#[derive(Clone, Debug)]
+
+#[derive(Copy, Clone, Debug)]
 pub struct GameState {
     /// part of the fen string that holds the state of the board
     board: Board,
@@ -174,24 +174,20 @@ impl FromStr for GameState {
             .split_once(' ')
             .map_or_else(|| Err(""), |(board, config)| Ok((board, config)))?;
         let board = Board::from_str(board)?;
-        println!("{}", config);
-        let config: [&str; 5] = config
-            .split(' ')
-            .collect::<Vec<&str>>()
-            .try_into()
-            .map_err(|_| "invalid config")?;
-        let active_color = match config[0] {
-            "w" => Color::White,
-            "b" => Color::Black,
+        let mut config = config.split(' ');
+        let active_color = match config.next() {
+            Some("w") => Color::White,
+            Some("b") => Color::Black,
             _ => return Err("invalid color to go")?,
         };
         let mut castling_moves = CastlingOptions {
             black: Castling::None,
             white: Castling::None,
         };
-        match config[1] {
-            "-" => {}
-            castlings => {
+        match config.next() {
+            Some("-") => {}
+
+            Some(castlings) => {
                 for castling in castlings.chars() {
                     match castling {
                         'K' => {
@@ -234,13 +230,22 @@ impl FromStr for GameState {
                     }
                 }
             }
+
+            None => return Err("invalid castling moves")?,
         };
-        let en_passant = match config[2] {
-            "-" => None,
-            pos => Pos::from_str(pos).ok(),
+        let en_passant = match config.next() {
+            Some("-") => None,
+            Some(pos) => Pos::from_str(pos).ok(),
+            None => return Err("invalid en passant")?,
         };
-        let half_move_clock = config[3].parse()?;
-        let full_move_clock = config[4].parse()?;
+        let half_move_clock = match config.next() {
+            Some(num) => num.parse()?,
+            None => return Err("invalid half move clock")?,
+        };
+        let full_move_clock = match config.next() {
+            Some(num) => num.parse()?,
+            None => return Err("invalid full move clock")?,
+        };
 
         Ok(Self {
             board,
@@ -313,7 +318,7 @@ fn turn_char_to_u8(charr: char) -> Result<u8, Box<dyn Error>> {
 fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
     let mut piece_count = 0;
     let cells = row.chars();
-    let mut ret = [Colored::None; 8];
+    let mut ret = [None; 8];
     let mut error = String::new();
     if cells.clone().count() > 8 {
         return Err("row is too long")?;
@@ -323,18 +328,18 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
             return;
         }
         match char {
-            'P' => ret[piece_count] = Colored::White(Piece::Pawn),
-            'p' => ret[piece_count] = Colored::Black(Piece::Pawn),
-            'N' => ret[piece_count] = Colored::White(Piece::Knight),
-            'n' => ret[piece_count] = Colored::Black(Piece::Knight),
-            'B' => ret[piece_count] = Colored::White(Piece::Bishop),
-            'b' => ret[piece_count] = Colored::Black(Piece::Bishop),
-            'R' => ret[piece_count] = Colored::White(Piece::Rook),
-            'r' => ret[piece_count] = Colored::Black(Piece::Rook),
-            'Q' => ret[piece_count] = Colored::White(Piece::Queen),
-            'q' => ret[piece_count] = Colored::Black(Piece::Queen),
-            'K' => ret[piece_count] = Colored::White(Piece::King),
-            'k' => ret[piece_count] = Colored::Black(Piece::King),
+            'P' => ret[piece_count] = Some(Colored::White(Piece::Pawn)),
+            'p' => ret[piece_count] = Some(Colored::Black(Piece::Pawn)),
+            'N' => ret[piece_count] = Some(Colored::White(Piece::Knight)),
+            'n' => ret[piece_count] = Some(Colored::Black(Piece::Knight)),
+            'B' => ret[piece_count] = Some(Colored::White(Piece::Bishop)),
+            'b' => ret[piece_count] = Some(Colored::Black(Piece::Bishop)),
+            'R' => ret[piece_count] = Some(Colored::White(Piece::Rook)),
+            'r' => ret[piece_count] = Some(Colored::Black(Piece::Rook)),
+            'Q' => ret[piece_count] = Some(Colored::White(Piece::Queen)),
+            'q' => ret[piece_count] = Some(Colored::Black(Piece::Queen)),
+            'K' => ret[piece_count] = Some(Colored::White(Piece::King)),
+            'k' => ret[piece_count] = Some(Colored::Black(Piece::King)),
             num if num.is_ascii_digit() => {
                 match num.to_digit(10) {
                     Some(digit) => {
