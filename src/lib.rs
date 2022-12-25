@@ -1,10 +1,19 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![deny(clippy::use_self, rust_2018_idioms)]
+#![allow(clippy::must_use_candidate)]
 
 use std::{error::Error, fmt, str::FromStr};
-
+macro_rules! impl_default {
+    ($type:ty) => {
+        impl Default for $type {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+    };
+}
 pub trait PieceMove {}
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Piece {
     King,
     Queen,
@@ -13,7 +22,7 @@ pub enum Piece {
     Knight,
     Pawn,
 }
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Colored<A> {
     Black(A),
     White(A),
@@ -43,16 +52,14 @@ impl fmt::Display for Colored<Piece> {
                     Piece::Queen => write!(f, "♛"),
                     Piece::King => write!(f, "♚"),
                 }
-            } // Self::None => {
-              //     write!(f, " ")
-              // }
+            }
         }
     }
 }
 
 type Row = [Option<Colored<Piece>>; 8];
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Board {
     board: [Row; 8],
 }
@@ -61,7 +68,7 @@ impl Board {
     pub fn format_with_color(&self, color: Color) -> String {
         let mut ret = String::new();
 
-        let (mut row_num, min_max, board) = if let Color::White = color {
+        let (mut row_num, min_max, board) = if Color::White == color {
             (8u8, 0u8, self.board)
         } else {
             // we need to reverse the letters
@@ -78,7 +85,7 @@ impl Board {
             row_num
         ));
         for row in board {
-            if let Color::White = color {
+            if Color::White == color {
                 row_num -= 1;
             } else {
                 row_num += 1;
@@ -98,13 +105,48 @@ impl Board {
                 }
             ));
         }
-        if let Color::White = color {
+        if Color::White == color {
             ret.push_str(" | a | b | c | d | e | f | g | h |\n");
         }
         ret
     }
-}
 
+    pub const fn new() -> Self {
+        // another way to generate the board at the beginning
+        // is to use the from_str method with `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR`
+        Self {
+            board: [
+                [
+                    Some(Colored::Black(Piece::Rook)),
+                    Some(Colored::Black(Piece::Knight)),
+                    Some(Colored::Black(Piece::Bishop)),
+                    Some(Colored::Black(Piece::Queen)),
+                    Some(Colored::Black(Piece::King)),
+                    Some(Colored::Black(Piece::Bishop)),
+                    Some(Colored::Black(Piece::Knight)),
+                    Some(Colored::Black(Piece::Rook)),
+                ],
+                [Some(Colored::Black(Piece::Pawn)); 8],
+                [None; 8],
+                [None; 8],
+                [None; 8],
+                [None; 8],
+                [Some(Colored::White(Piece::Pawn)); 8],
+                [
+                    Some(Colored::White(Piece::Rook)),
+                    Some(Colored::White(Piece::Knight)),
+                    Some(Colored::White(Piece::Bishop)),
+                    Some(Colored::White(Piece::Queen)),
+                    Some(Colored::White(Piece::King)),
+                    Some(Colored::White(Piece::Bishop)),
+                    Some(Colored::White(Piece::Knight)),
+                    Some(Colored::White(Piece::Rook)),
+                ],
+            ],
+        }
+    }
+}
+impl_default!(Board);
 impl FromStr for Board {
     type Err = Box<dyn Error>;
 
@@ -130,7 +172,7 @@ impl fmt::Display for Board {
         write!(f, "{}", self.format_with_color(Color::White))
     }
 }
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     Black,
     White,
@@ -143,7 +185,7 @@ pub enum Castling {
     Both,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     /// part of the fen string that holds the state of the board
     board: Board,
@@ -166,6 +208,29 @@ pub struct CastlingOptions {
     white: Castling,
 }
 
+impl CastlingOptions {
+    pub const fn new() -> Self {
+        Self {
+            black: Castling::Both,
+            white: Castling::Both,
+        }
+    }
+}
+impl_default!(CastlingOptions);
+
+impl GameState {
+    pub const fn new() -> Self {
+        Self {
+            board: Board::new(),
+            active_color: Color::White,
+            full_move_clock: 1,
+            half_move_clock: 0,
+            castling_moves: CastlingOptions::new(),
+            en_passant: None,
+        }
+    }
+}
+impl_default!(GameState);
 impl FromStr for GameState {
     type Err = Box<dyn Error>;
 
@@ -257,7 +322,7 @@ impl FromStr for GameState {
         })
     }
 }
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Pos {
     x: u8,
     y: u8,
@@ -364,6 +429,9 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
     Ok(ret)
 }
 
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,8 +441,11 @@ mod tests {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         let gamestate = GameState::from_str(fen);
         assert!(gamestate.is_ok());
+
         let gamestate = gamestate.unwrap();
         println!("{}", gamestate.board.format_with_color(Color::Black));
+        assert_eq!(GameState::new(), gamestate);
+        println!("{}", GameState::new().board.format_with_color(Color::Black));
     }
 
     #[test]
