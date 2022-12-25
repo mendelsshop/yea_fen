@@ -429,9 +429,6 @@ fn parse_fen_row(row: &str) -> Result<Row, Box<dyn Error>> {
     Ok(ret)
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
