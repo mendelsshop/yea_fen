@@ -13,7 +13,7 @@ macro_rules! impl_default {
     };
 }
 
-impl IntoIterator for Board  {
+impl IntoIterator for Board {
     type Item = Row;
 
     type IntoIter = std::array::IntoIter<Row, 8>;
@@ -21,7 +21,6 @@ impl IntoIterator for Board  {
     fn into_iter(self) -> Self::IntoIter {
         self.board.into_iter()
     }
-
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Piece {
