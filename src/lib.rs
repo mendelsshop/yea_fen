@@ -41,26 +41,24 @@ impl fmt::Display for Colored<Piece> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Black(piece) => match piece {
-                    // we use the unicode escape sequence for the pawn
-                    // because some terminals display it as a an emoji
-                    // thus ruining the board
-                    Piece::Pawn => write!(f, "\u{265f}"),
-                    Piece::Knight => write!(f, "♞"),
-                    Piece::Bishop => write!(f, "♝"),
-                    Piece::Rook => write!(f, "♜"),
-                    Piece::Queen => write!(f, "♛"),
-                    Piece::King => write!(f, "♚"),
+                // we use the unicode escape sequence for the pawn
+                // because some terminals display it as a an emoji
+                // thus ruining the board
+                Piece::Pawn => write!(f, "\u{265f}"),
+                Piece::Knight => write!(f, "♞"),
+                Piece::Bishop => write!(f, "♝"),
+                Piece::Rook => write!(f, "♜"),
+                Piece::Queen => write!(f, "♛"),
+                Piece::King => write!(f, "♚"),
             },
-            Self::White(piece) => {
-                match piece {
+            Self::White(piece) => match piece {
                 Piece::Pawn => write!(f, "♙"),
                 Piece::Knight => write!(f, "♘"),
                 Piece::Bishop => write!(f, "♗"),
                 Piece::Rook => write!(f, "♖"),
                 Piece::Queen => write!(f, "♕"),
                 Piece::King => write!(f, "♔"),
-                }
-            }
+            },
         }
     }
 }
