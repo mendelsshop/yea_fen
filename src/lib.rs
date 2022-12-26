@@ -22,7 +22,7 @@ impl IntoIterator for Board {
         self.board.into_iter()
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Piece {
     King,
     Queen,
@@ -31,7 +31,7 @@ pub enum Piece {
     Knight,
     Pawn,
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Colored<A> {
     Black(A),
     White(A),
@@ -183,7 +183,7 @@ pub enum Color {
     Black,
     White,
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Castling {
     None,
     KingSide,
