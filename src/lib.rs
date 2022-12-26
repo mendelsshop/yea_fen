@@ -42,15 +42,6 @@ impl fmt::Display for Colored<Piece> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Black(piece) => match piece {
-                Piece::Pawn => write!(f, "♙"),
-                Piece::Knight => write!(f, "♘"),
-                Piece::Bishop => write!(f, "♗"),
-                Piece::Rook => write!(f, "♖"),
-                Piece::Queen => write!(f, "♕"),
-                Piece::King => write!(f, "♔"),
-            },
-            Self::White(piece) => {
-                match piece {
                     // we use the unicode escape sequence for the pawn
                     // because some terminals display it as a an emoji
                     // thus ruining the board
@@ -60,6 +51,15 @@ impl fmt::Display for Colored<Piece> {
                     Piece::Rook => write!(f, "♜"),
                     Piece::Queen => write!(f, "♛"),
                     Piece::King => write!(f, "♚"),
+            },
+            Self::White(piece) => {
+                match piece {
+                Piece::Pawn => write!(f, "♙"),
+                Piece::Knight => write!(f, "♘"),
+                Piece::Bishop => write!(f, "♗"),
+                Piece::Rook => write!(f, "♖"),
+                Piece::Queen => write!(f, "♕"),
+                Piece::King => write!(f, "♔"),
                 }
             }
         }
@@ -473,7 +473,7 @@ mod tests {
         assert!(gamestate.is_ok());
 
         let gamestate = gamestate.unwrap();
-        println!("{}", gamestate.board.format_with_color(Color::Black));
+        println!("{}", gamestate.board);
         assert_eq!(GameState::new(), gamestate);
         println!("{}", GameState::new().board.format_with_color(Color::Black));
     }
