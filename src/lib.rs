@@ -32,6 +32,19 @@ pub enum Piece {
     Pawn,
 }
 
+impl fmt::Display for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::King => write!(f, "k"),
+            Self::Queen => write!(f, "q"),
+            Self::Rook => write!(f, "r"),
+            Self::Bishop => write!(f, "b"),
+            Self::Knight => write!(f, "n"),
+            Self::Pawn => write!(f, "p"),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Colored<A> {
     Black(A),
@@ -353,6 +366,152 @@ impl FromStr for GameState {
         })
     }
 }
+
+impl fmt::Display for GameState {
+    // returns the game state as a fen encoded string
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (idx, row) in self.board.into_iter().enumerate() {
+            let mut blank_count = 0;
+            for (idx, piece) in row.iter().enumerate() {
+                match piece {
+                    Some(p) => {
+                        if blank_count > 0 {
+                            write!(f, "{}", blank_count)?;
+                        }
+
+                        blank_count = 0;
+                        match p {
+                            Colored::White(p) => write!(f, "{}", p.to_string().to_uppercase())?,
+                            Colored::Black(p) => write!(f, "{}", p)?,
+                        }
+                    }
+                    None => {
+                        blank_count += 1;
+                        if idx > 6 {
+                            write!(f, "{}", blank_count)?;
+                        }
+                    }
+                }
+            }
+            if idx != 7 {
+                write!(f, "/")?;
+            }
+        }
+
+        match self.active_color {
+            Color::Black => write!(f, " b")?,
+            Color::White => write!(f, " w")?,
+        }
+        match self.castling_moves {
+            CastlingOptions {
+                black: Castling::None,
+                white: Castling::None,
+            } => {
+                write!(f, " -")?;
+            }
+            CastlingOptions {
+                black: Castling::Both,
+                white: Castling::Both,
+            } => {
+                write!(f, " KQkq")?;
+            }
+            CastlingOptions {
+                black: Castling::Both,
+                white: Castling::KingSide,
+            } => {
+                write!(f, " Kkq")?;
+            }
+            CastlingOptions {
+                black: Castling::Both,
+                white: Castling::QueenSide,
+            } => {
+                write!(f, " Qkq")?;
+            }
+            CastlingOptions {
+                black: Castling::KingSide,
+                white: Castling::Both,
+            } => {
+                write!(f, " KQk")?;
+            }
+            CastlingOptions {
+                black: Castling::KingSide,
+                white: Castling::KingSide,
+            } => {
+                write!(f, " Kk")?;
+            }
+            CastlingOptions {
+                black: Castling::KingSide,
+                white: Castling::QueenSide,
+            } => {
+                write!(f, " QK")?;
+            }
+            CastlingOptions {
+                black: Castling::QueenSide,
+                white: Castling::Both,
+            } => {
+                write!(f, " KQq")?;
+            }
+            CastlingOptions {
+                black: Castling::QueenSide,
+                white: Castling::KingSide,
+            } => {
+                write!(f, " Kq")?;
+            }
+            CastlingOptions {
+                black: Castling::QueenSide,
+                white: Castling::QueenSide,
+            } => {
+                write!(f, " Qq")?;
+            }
+            CastlingOptions {
+                black: Castling::None,
+                white: Castling::Both,
+            } => {
+                write!(f, " KQ")?;
+            }
+            CastlingOptions {
+                black: Castling::None,
+                white: Castling::KingSide,
+            } => {
+                write!(f, " K")?;
+            }
+            CastlingOptions {
+                black: Castling::None,
+                white: Castling::QueenSide,
+            } => {
+                write!(f, " Q")?;
+            }
+            CastlingOptions {
+                black: Castling::Both,
+                white: Castling::None,
+            } => {
+                write!(f, " kq")?;
+            }
+            CastlingOptions {
+                black: Castling::KingSide,
+                white: Castling::None,
+            } => {
+                write!(f, " k")?;
+            }
+            CastlingOptions {
+                black: Castling::QueenSide,
+                white: Castling::None,
+            } => {
+                write!(f, " q")?;
+            }
+        }
+
+        match self.en_passant {
+            Some(pos) => write!(f, " {}", pos)?,
+            None => write!(f, " -")?,
+        }
+
+        write!(f, " {}", self.half_move_clock)?;
+        write!(f, " {}", self.full_move_clock)?;
+
+        Ok(())
+    }
+}
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Pos {
     row: u8,
@@ -526,5 +685,22 @@ mod tests {
         let a1 = Pos::from_str("a1").unwrap();
         assert_eq!(a1, Pos::new(1, 1));
         assert_eq!(a1.to_string(), "a1");
+    }
+
+    #[test]
+    fn to_fen() {
+        let gamestate = GameState::new();
+        println!("{}", gamestate);
+        assert_eq!(
+            gamestate.to_string(),
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        );
+
+        let in_game = GameState::from_str("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2").unwrap();
+        println!("{}", in_game);
+        assert_eq!(
+            in_game.to_string(),
+            "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
+        )
     }
 }
