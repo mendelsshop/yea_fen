@@ -150,15 +150,14 @@ impl Board {
         // if we have a horse we need to check if the destinations cells are covered by other pieces of the same color,
         // if they are , we need to remove them from the possible moves
         // we also need to check if knight is pinned by preventing a check,
-        // if so we cannot move anywhere 
+        // if so we cannot move anywhere
         // we need to check if the knight king is in check, if so we need to check if the knight can move to a cell that will prevent the check
         // if not, we cannot move the knight
         if self.get_cell(cell) == Some(&Some(Colored::Black(Piece::Knight))) {
             possible_moves
-    
         }
         // for all other pieces the conditions are the same plus we need to check if the at any point from the current position to the destination there is a friendly piece in the way
-        // if there is, we need to remove the destination from the possible moves 
+        // if there is, we need to remove the destination from the possible moves
         // we probably need to have special cases for the king
         else {
             HashSet::new()
