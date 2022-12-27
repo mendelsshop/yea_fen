@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![deny(clippy::use_self, rust_2018_idioms)]
 #![allow(clippy::must_use_candidate)]
-
+mod moves;
 use std::{error::Error, fmt, str::FromStr};
 macro_rules! impl_default {
     ($type:ty) => {
@@ -31,6 +31,7 @@ pub enum Piece {
     Knight,
     Pawn,
 }
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Colored<A> {
     Black(A),
@@ -236,27 +237,27 @@ impl GameState {
         }
     }
 
-    pub fn get_board(&self) -> &Board {
+    pub const fn get_board(&self) -> &Board {
         &self.board
     }
 
-    pub fn get_active_color(&self) -> Color {
+    pub const fn get_active_color(&self) -> Color {
         self.active_color
     }
 
-    pub fn get_full_move_clock(&self) -> usize {
+    pub const fn get_full_move_clock(&self) -> usize {
         self.full_move_clock
     }
 
-    pub fn get_half_move_clock(&self) -> usize {
+    pub const fn get_half_move_clock(&self) -> usize {
         self.half_move_clock
     }
 
-    pub fn get_castling_moves(&self) -> &CastlingOptions {
+    pub const fn get_castling_moves(&self) -> &CastlingOptions {
         &self.castling_moves
     }
 
-    pub fn get_en_passant(&self) -> Option<Pos> {
+    pub const fn get_en_passant(&self) -> Option<Pos> {
         self.en_passant
     }
 }
@@ -352,10 +353,43 @@ impl FromStr for GameState {
         })
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Pos {
-    x: u8,
-    y: u8,
+    row: u8,
+    column: u8,
+}
+
+pub struct RowNumber(u8);
+
+impl Pos {
+    ///
+    /// # Panics
+    /// Panics if row or column is not between 1 and 8
+    pub const fn new(row: u8, column: u8) -> Self {
+        assert!(
+            !(row < 1 || row > 8 || column < 1 || column > 8),
+            "invalid row or column"
+        );
+        Self { row, column }
+    }
+
+    pub const fn get_row(&self) -> u8 {
+        self.row
+    }
+
+    pub const fn get_column(&self) -> u8 {
+        self.column
+    }
+
+    pub const fn get_column_char(self) -> char {
+        (self.column + 96) as char
+    }
+}
+
+impl fmt::Display for Pos {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", self.get_column_char(), self.row)
+    }
 }
 
 impl FromStr for Pos {
@@ -364,49 +398,21 @@ impl FromStr for Pos {
     #[allow(clippy::cast_possible_truncation)]
     // when wa cast u32 to u8, we know that the u32 is less than or equal to 8
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut ret = Self { x: 0, y: 0 };
+        let mut ret = Self { row: 0, column: 0 };
         if s.chars().count() != 2 {
             return Err("invalid length for position string")?;
         }
-        for char in s.chars() {
-            match char {
-                char if char.is_ascii_alphabetic() => {
-                    if ('a'..='h').contains(&char) {
-                        ret.x = turn_char_to_u8(char)?;
-                    } else {
-                        return Err(format!("invalid postion string {}", char))?;
-                    }
-                }
-                char if char.is_ascii_digit() => {
-                    let char = char
-                        .to_digit(10)
-                        .map_or_else(|| Err("couldnt parse digit")?, Ok::<u32, Self::Err>)?;
-                    if (1..=8).contains(&char) {
-                        ret.y = char as u8;
-                    } else {
-                        return Err(format!("invalid postion string {}", char))?;
-                    }
-                }
-                char => {
-                    return Err(format!("invalid postion string {}", char))?;
-                }
-            }
-        }
-        Ok(ret)
-    }
-}
+        let mut chars = s.chars();
+        let column = chars.next().unwrap();
+        let row = chars.next().unwrap();
+        // we need to get the column number from the letter
+        // a = 1, b = 2, c = 3, d = 4, e = 5, f = 6, g = 7, h = 8
+        // so we subtract 96 from the ascii value of the letter
+        // this is because the ascii value of a is 97
+        ret.column = (column as u32 - 96) as u8;
 
-fn turn_char_to_u8(charr: char) -> Result<u8, Box<dyn Error>> {
-    match charr {
-        'a' => Ok(1),
-        'b' => Ok(2),
-        'c' => Ok(3),
-        'd' => Ok(4),
-        'e' => Ok(5),
-        'f' => Ok(6),
-        'g' => Ok(7),
-        'h' => Ok(8),
-        other => Err(format!("invalid char {}", other))?,
+        ret.row = row.to_string().parse()?;
+        Ok(ret)
     }
 }
 
@@ -480,7 +486,7 @@ mod tests {
         let fen = "8/8/8/8 ";
         let gamestate = GameState::from_str(fen);
         assert!(gamestate.is_err());
-        assert_eq!(gamestate.unwrap_err().to_string(), "Invalid board length")
+        assert_eq!(gamestate.unwrap_err().to_string(), "Invalid board length");
     }
 
     #[test]
@@ -491,7 +497,7 @@ mod tests {
         assert!(gamestate
             .unwrap_err()
             .to_string()
-            .contains("is not a valid fen board character"))
+            .contains("is not a valid fen board character"));
     }
 
     #[test]
@@ -513,5 +519,12 @@ mod tests {
         println!("{:?}", gamestate);
         println!("{}", gamestate.board.format_with_color(Color::Black));
         println!("{}", gamestate.board.format_with_color(Color::White));
+    }
+
+    #[test]
+    fn test_pos() {
+        let a1 = Pos::from_str("a1").unwrap();
+        assert_eq!(a1, Pos::new(1, 1));
+        assert_eq!(a1.to_string(), "a1");
     }
 }
