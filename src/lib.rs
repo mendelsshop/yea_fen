@@ -1,7 +1,8 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![deny(clippy::use_self, rust_2018_idioms)]
 #![allow(clippy::must_use_candidate)]
-mod moves;
+/// stuff that has to do with making chess moves
+pub mod moves;
 use std::{error::Error, fmt, str::FromStr};
 macro_rules! impl_default {
     ($type:ty) => {
@@ -23,6 +24,7 @@ impl IntoIterator for Board {
     }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// A chess piece (does not hold the color of the piece)
 pub enum Piece {
     King,
     Queen,
@@ -46,11 +48,21 @@ impl fmt::Display for Piece {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// represents a colored thing usally a piece
 pub enum Colored<A> {
     Black(A),
     White(A),
 }
 
+// implent the From trait to convert Colored<A> to Color
+impl<A> From<Colored<A>> for Color {
+    fn from(colored: Colored<A>) -> Self {
+        match colored {
+            Colored::Black(_) => Self::Black,
+            Colored::White(_) => Self::White,
+        }
+    }
+}
 impl fmt::Display for Colored<Piece> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -80,11 +92,14 @@ impl fmt::Display for Colored<Piece> {
 type Row = [Option<Colored<Piece>>; 8];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+/// A chess board
 pub struct Board {
     board: [Row; 8],
 }
 
 impl Board {
+    /// Prints the board from the vantage point of the given color
+    /// uses the unicode representation of each chess piece
     pub fn format_with_color(&self, color: Color) -> String {
         let mut ret = String::new();
 
@@ -131,6 +146,7 @@ impl Board {
         ret
     }
 
+    /// Creates a new chess board with the deafault chess starting positions
     pub const fn new() -> Self {
         // another way to generate the board at the beginning
         // is to use the from_str method with `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR`
@@ -170,6 +186,7 @@ impl_default!(Board);
 impl FromStr for Board {
     type Err = Box<dyn Error>;
 
+    /// Parses a board from the board part of a FEN string
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let board = s.split('/').collect::<Vec<&str>>();
         if board.len() != 8 {
@@ -193,11 +210,13 @@ impl fmt::Display for Board {
     }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+/// The Colors of chess used to determine the current player among other things
 pub enum Color {
     Black,
     White,
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// Castling Options
 pub enum Castling {
     None,
     KingSide,
@@ -206,6 +225,8 @@ pub enum Castling {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+/// The state of a game
+/// icludes the board, current player, number of moves taken, and other FEN related metadata
 pub struct GameState {
     /// part of the fen string that holds the state of the board
     board: Board,
@@ -223,12 +244,14 @@ pub struct GameState {
     en_passant: Option<Pos>,
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+/// The castling option for both player
 pub struct CastlingOptions {
     black: Castling,
     white: Castling,
 }
 
 impl CastlingOptions {
+    /// the default castling options (`Castling::Both` for both players)
     pub const fn new() -> Self {
         Self {
             black: Castling::Both,
@@ -239,6 +262,7 @@ impl CastlingOptions {
 impl_default!(CastlingOptions);
 
 impl GameState {
+    /// returns the `GameState` for a new game, with Pieces in the start positions
     pub const fn new() -> Self {
         Self {
             board: Board::new(),
@@ -250,26 +274,32 @@ impl GameState {
         }
     }
 
+    /// Returns a refernce to the current board
     pub const fn get_board(&self) -> &Board {
         &self.board
     }
 
+    /// Returns the current player's color
     pub const fn get_active_color(&self) -> Color {
         self.active_color
     }
 
+    /// Returns the number of moves taken
     pub const fn get_full_move_clock(&self) -> usize {
         self.full_move_clock
     }
 
+    /// Returns the number of moves since the last pawn move or piece kill
     pub const fn get_half_move_clock(&self) -> usize {
         self.half_move_clock
     }
 
+    /// Returns the castling options for both players
     pub const fn get_castling_moves(&self) -> &CastlingOptions {
         &self.castling_moves
     }
 
+    /// Returns the en passant options
     pub const fn get_en_passant(&self) -> Option<Pos> {
         self.en_passant
     }
@@ -278,6 +308,7 @@ impl_default!(GameState);
 impl FromStr for GameState {
     type Err = Box<dyn Error>;
 
+    /// Parses a FEN string into a `GameState`
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (board, config) = s
             .split_once(' ')
@@ -368,7 +399,7 @@ impl FromStr for GameState {
 }
 
 impl fmt::Display for GameState {
-    // returns the game state as a fen encoded string
+    /// returns the game state as a fen encoded string
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (idx, row) in self.board.into_iter().enumerate() {
             let mut blank_count = 0;
@@ -513,15 +544,14 @@ impl fmt::Display for GameState {
     }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// A position on the board
 pub struct Pos {
     row: u8,
     column: u8,
 }
 
-pub struct RowNumber(u8);
-
 impl Pos {
-    ///
+    /// creates a new position from a row and column
     /// # Panics
     /// Panics if row or column is not between 1 and 8
     pub const fn new(row: u8, column: u8) -> Self {
@@ -532,14 +562,17 @@ impl Pos {
         Self { row, column }
     }
 
+    /// returns the row of the position
     pub const fn get_row(&self) -> u8 {
         self.row
     }
 
+    /// returns the column of the position
     pub const fn get_column(&self) -> u8 {
         self.column
     }
 
+    /// returns the column as a char ie 0 is a, 1 is b, etc
     pub const fn get_column_char(self) -> char {
         (self.column + 96) as char
     }
@@ -553,6 +586,7 @@ impl fmt::Display for Pos {
 
 impl FromStr for Pos {
     type Err = Box<dyn Error>;
+    /// creates a new position from a string ie "a1" becomes Pos { row: 1, column: 1 }
     /// Y can be a-h, and X can 1-8
     #[allow(clippy::cast_possible_truncation)]
     // when wa cast u32 to u8, we know that the u32 is less than or equal to 8
@@ -703,6 +737,6 @@ mod tests {
         assert_eq!(
             in_game.to_string(),
             "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
-        )
+        );
     }
 }
