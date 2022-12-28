@@ -1,4 +1,8 @@
-use std::{collections::HashSet, ops::Range};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    ops::Range,
+};
 
 use crate::{Board, Color, Colored, Piece, Pos};
 
@@ -8,6 +12,15 @@ use crate::{Board, Color, Colored, Piece, Pos};
 pub enum MoveType<POS> {
     Capture(POS),
     Move(POS),
+}
+
+impl fmt::Display for MoveType<Pos> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Capture(pos) => write!(f, "Capture {}", pos),
+            Self::Move(pos) => write!(f, "Move {}", pos),
+        }
+    }
 }
 
 macro_rules! check_insert {
@@ -46,7 +59,7 @@ impl Board {
     /// This will return the possible moves for a given piece (which is specified by its position)
     /// it will no return moves that are blocked by other pieces
     /// but it does not account for checks so it can return illegal moves
-    pub fn get_moves(&self, pos: Pos) -> HashSet<MoveType<Pos>> {
+    pub fn get_piece_moves(&self, pos: Pos) -> HashSet<MoveType<Pos>> {
         match self.get_cell(pos) {
             None | Some(None) => HashSet::new(),
             Some(Some(piece)) => {
@@ -103,12 +116,18 @@ impl Board {
                         // we need to check color and row if black and 7 then 2
                         // if white and 2 use 2 otherwise 1
                         // check if diagonal foward left & right is a capture of enemy if so add to ret
+                        // we need to check that the vertical moves are not captures
+                        let mut possible = HashSet::new();
                         match (color, pos.row) {
-                            (Color::White, 2) => self.vert_half(pos, color, 2, &mut ret),
-                            (Color::Black, 7) => self.vert_half(pos, color, -2, &mut ret),
-                            (Color::Black, _) => self.vert_half(pos, color, -1, &mut ret),
-                            (Color::White, _) => self.vert_half(pos, color, 1, &mut ret),
+                            (Color::White, 2) => self.vert_half(pos, color, 2, &mut possible),
+                            (Color::Black, 7) => self.vert_half(pos, color, -2, &mut possible),
+                            (Color::Black, _) => self.vert_half(pos, color, -1, &mut possible),
+                            (Color::White, _) => self.vert_half(pos, color, 1, &mut possible),
                         }
+                        ret.extend(possible.iter().filter(|thing| match **thing {
+                            MoveType::Capture(_) => false,
+                            MoveType::Move(_) => true,
+                        }));
                         let mut possible = HashSet::new();
                         match color {
                             Color::Black => {
@@ -121,7 +140,6 @@ impl Board {
                             }
                         }
                         // validate the the possible values are captures and not just plain moves
-
                         ret.extend(possible.iter().filter(|thing| match **thing {
                             MoveType::Capture(_) => true,
                             MoveType::Move(_) => false,
@@ -223,6 +241,52 @@ impl Board {
         self.diag_right(pos, piece_color, length, ret);
         self.diag_left(pos, piece_color, -length, ret);
         self.diag_right(pos, piece_color, -length, ret);
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    // we will never truncate a value becuse the board does not go past 8
+    /// gets all posible moves for a given color/player
+    /// the moves can be invalid in a way such that the king can still be in check
+    pub fn get_all_moves(
+        &self,
+        player: Color,
+    ) -> HashMap<(Pos, Colored<Piece>), HashSet<MoveType<Pos>>> {
+        // gets all moves for a given color by iterating through the board and finding pieces of the color and generating the moves for that piece using self.get_piece_moves()
+        self.into_iter()
+            .rev()
+            .enumerate()
+            .flat_map(|(row_idx, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter_map(|(column_idx, cell)| {
+                        println!("{:?} {:?}", cell, (row_idx + 1, column_idx + 1));
+                        let cell = (*cell)?;
+                        if Color::from(cell) == player {
+                            let pos = Pos::new(row_idx as u8 + 1, column_idx as u8 + 1);
+                            let moves = self.get_piece_moves(pos);
+                            if moves.is_empty() {
+                                None
+                            } else {
+                                Some(((pos, cell), moves))
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<HashMap<(Pos, Colored<Piece>), HashSet<MoveType<Pos>>>>()
+            })
+            .collect::<HashMap<(Pos, Colored<Piece>), HashSet<MoveType<Pos>>>>()
+        // HashMap::new()
+    }
+
+    pub fn get_all_valid_moves(
+        &self,
+        player: Color,
+    ) -> HashMap<(Pos, Colored<Piece>), HashSet<MoveType<Pos>>> {
+        let ret = self.get_all_moves(player);
+        // one way to figure out if a move is legal
+        // is to play a move and see if any of the oppenets moves is to capture the king
+        ret
     }
 }
 
@@ -364,7 +428,7 @@ impl Board {
 mod move_tests {
     use std::{collections::HashSet, str::FromStr};
 
-    use crate::{Colored, GameState, Piece, Pos};
+    use crate::{Color, Colored, GameState, Piece, Pos};
 
     #[test]
     fn test_possible_moves() {
@@ -460,26 +524,42 @@ mod move_tests {
     #[test]
     fn test_semi_legal_moves() {
         let game_state = GameState::new();
-        let pos_moves = game_state.board.get_moves(Pos::from_str("e1").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("e1").unwrap());
         assert_eq!(pos_moves.len(), 0);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("e2").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("e2").unwrap());
         assert_eq!(pos_moves.len(), 2);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("b1").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("b1").unwrap());
         assert_eq!(pos_moves.len(), 2);
 
         let game_state =
             GameState::from_str("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
                 .unwrap();
         println!("{}", game_state.board);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("e1").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("e1").unwrap());
         assert_eq!(pos_moves.len(), 1);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("f1").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("f1").unwrap());
         assert_eq!(pos_moves.len(), 5);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("d1").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("d1").unwrap());
         assert_eq!(pos_moves.len(), 1);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("h1").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("h1").unwrap());
         assert_eq!(pos_moves.len(), 1);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("e4").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("e4").unwrap());
         assert_eq!(pos_moves.len(), 1);
 
         // test pawn capture
@@ -487,7 +567,29 @@ mod move_tests {
             GameState::from_str("rnbqkbnr/ppp1pppp/8/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
                 .unwrap();
         println!("{}", game_state.board);
-        let pos_moves = game_state.board.get_moves(Pos::from_str("e4").unwrap());
+        let pos_moves = game_state
+            .board
+            .get_piece_moves(Pos::from_str("e4").unwrap());
         assert_eq!(pos_moves.len(), 2);
+    }
+
+    #[test]
+    fn generate_all_moves() {
+        let game_state = GameState::new();
+        println!(
+            "{}",
+            game_state
+                .board
+                .get_all_moves(Color::Black)
+                .iter()
+                .map(|((pos, piece), moves)| {
+                    let moves = moves
+                        .iter()
+                        .map(|pos| format!("{} ", pos.to_string()))
+                        .collect::<String>();
+                    format!("\n{} at {} with moves {}", pos, piece, moves)
+                })
+                .collect::<String>()
+        );
     }
 }
