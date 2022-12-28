@@ -554,9 +554,9 @@ impl Pos {
     /// creates a new position from a row and column
     /// # Panics
     /// Panics if row or column is not between 1 and 8
-    pub const fn new(row: u8, column: u8) -> Self {
+    pub fn new(row: u8, column: u8) -> Self {
         assert!(
-            !(row < 1 || row > 8 || column < 1 || column > 8),
+            !(!(1..=8).contains(&row) || !(1..=8).contains(&column)),
             "invalid row or column"
         );
         Self { row, column }
