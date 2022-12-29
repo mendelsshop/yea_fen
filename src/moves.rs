@@ -19,7 +19,8 @@ pub enum MoveType<POS, PIECE> {
 impl fmt::Display for MoveType<Pos, Colored<Piece>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Capture((pos_o, piece_m), (pos_n, piece)) | Self::CapturePromotion((pos_o, piece_m), (pos_n, piece)) => write!(
+            Self::Capture((pos_o, piece_m), (pos_n, piece))
+            | Self::CapturePromotion((pos_o, piece_m), (pos_n, piece)) => write!(
                 f,
                 "Capture {} at {} from {} at {}",
                 piece, pos_o, piece_m, pos_n
@@ -233,8 +234,6 @@ impl Game {
                         ret.extend(possible.iter().filter(|thing| match **thing {
                             MoveType::Capture(..) | MoveType::CapturePromotion(..) => true,
                             MoveType::Move(..) | MoveType::MovePromotion(..) => false,
-                            
-                            
                         }));
                     }
                 }
@@ -405,11 +404,12 @@ impl Game {
                         .filter(|pos| {
                             // check if its a pawn promotion
                             let piece = match piece {
-                                Colored::White(piece)
-                                | Colored::Black(piece) => piece,
+                                Colored::White(piece) | Colored::Black(piece) => piece,
                             };
                             if piece == &Piece::Pawn {
-                                if let MoveType::MovePromotion(_, _) | MoveType::CapturePromotion(_, _) = pos {
+                                if let MoveType::MovePromotion(_, _)
+                                | MoveType::CapturePromotion(_, _) = pos
+                                {
                                     self.do_move(**pos, Some(Colored::White(Piece::Queen)));
                                 } else {
                                     self.do_move(**pos, None);
@@ -417,7 +417,7 @@ impl Game {
                             } else {
                                 self.do_move(**pos, None);
                             }
-                            
+
                             let openent = match player {
                                 Color::White => Color::Black,
                                 Color::Black => Color::White,
@@ -427,7 +427,8 @@ impl Game {
                             !enemy_moves.iter().any(|(_, moves)| {
                                 moves.iter().any(|move_type| {
                                     match move_type {
-                                        MoveType::Capture((_, _), (_, piece)) | MoveType::CapturePromotion((_, _), (_, piece)) => {
+                                        MoveType::Capture((_, _), (_, piece))
+                                        | MoveType::CapturePromotion((_, _), (_, piece)) => {
                                             if Color::from(*piece) == player {
                                                 let piece = match piece {
                                                     Colored::White(piece)
@@ -472,24 +473,33 @@ impl Game {
         ret
     }
 
-    pub fn do_move(&mut self, r#move: MoveType<Pos, Colored<Piece>>, promotion: Option<Colored<Piece>>) {
+    pub fn do_move(
+        &mut self,
+        r#move: MoveType<Pos, Colored<Piece>>,
+        promotion: Option<Colored<Piece>>,
+    ) {
         match r#move {
             MoveType::Capture((pos, piece), (pos_c, _)) | MoveType::Move((pos, piece), pos_c) => {
                 self.board.insert(None, pos);
                 self.board.insert(Some(piece), pos_c);
             }
-            MoveType::CapturePromotion((pos, _), (pos_c, _)) | MoveType::MovePromotion((pos, _), pos_c) => {
+            MoveType::CapturePromotion((pos, _), (pos_c, _))
+            | MoveType::MovePromotion((pos, _), pos_c) => {
                 if let Some(promotion) = promotion {
                     match promotion {
                         Colored::White(piece) | Colored::Black(piece) => {
-                            if piece != Piece::Queen && piece != Piece::Rook && piece != Piece::Bishop && piece != Piece::Knight {
+                            if piece != Piece::Queen
+                                && piece != Piece::Rook
+                                && piece != Piece::Bishop
+                                && piece != Piece::Knight
+                            {
                                 return;
                             }
                         }
                     }
                     self.board.insert(None, pos);
                     self.board.insert(Some(promotion), pos_c);
-                } 
+                }
             }
         }
         self.moves.push((r#move, promotion));
@@ -498,13 +508,19 @@ impl Game {
     pub fn undo_move(&mut self) {
         if let Some(r#move) = self.moves.pop() {
             match r#move {
-                (MoveType::Capture((pos, piece), (pos_c, piece_c)) |
-                MoveType::CapturePromotion((pos, piece), (pos_c, piece_c)), _) => {
+                (
+                    MoveType::Capture((pos, piece), (pos_c, piece_c))
+                    | MoveType::CapturePromotion((pos, piece), (pos_c, piece_c)),
+                    _,
+                ) => {
                     self.board.insert(Some(piece), pos);
                     self.board.insert(Some(piece_c), pos_c);
                 }
-                (MoveType::Move((pos, piece), blank_pos) |
-                MoveType::MovePromotion((pos, piece), blank_pos), _) => {
+                (
+                    MoveType::Move((pos, piece), blank_pos)
+                    | MoveType::MovePromotion((pos, piece), blank_pos),
+                    _,
+                ) => {
                     self.board.insert(Some(piece), pos);
                     self.board.insert(None, blank_pos);
                 }
@@ -873,11 +889,8 @@ mod move_tests {
 
     #[test]
     fn test_promotion() {
-        let mut game_state = Game::from(
-            GameState::from_str("8/8/8/8/8/8/7p/8 b - - 0 1").unwrap(),
-        );
-        let moves = game_state
-            .get_all_moves(Color::Black);
+        let mut game_state = Game::from(GameState::from_str("8/8/8/8/8/8/7p/8 b - - 0 1").unwrap());
+        let moves = game_state.get_all_moves(Color::Black);
         println!("{}", game_state.board);
         let i = moves[&(Pos::new(2, 8), Colored::Black(Piece::Pawn))].clone();
         let mut i = i.iter();
@@ -889,6 +902,5 @@ mod move_tests {
             game_state.board.get_cell(Pos::new(1, 8)),
             Some(&Some(Colored::Black(Piece::Queen)))
         );
-
     }
 }
