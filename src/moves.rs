@@ -15,6 +15,7 @@ pub enum MoveType<POS, PIECE> {
     CapturePromotion((POS, PIECE), (POS, PIECE)),
     MovePromotion((POS, PIECE), POS),
     EnPassant((POS, PIECE), (POS, PIECE), POS),
+    Castle((POS, (POS, PIECE)), (POS, (POS, PIECE))),
 }
 
 pub struct Move {
@@ -40,6 +41,11 @@ impl fmt::Display for MoveType<Pos, Colored<Piece>> {
                 f,
                 "En_passant {} at {} from {} at {} to {}",
                 piece, pos_o, piece_m, pos_n, pos_e
+            ),
+            Self::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))) => write!(
+                f,
+                "castle at {}:{} {}:{} from {} and {}",
+                new_k, king, new_c, castle, pos_k, pos_c
             ),
         }
     }
@@ -231,7 +237,8 @@ impl Game {
                         ret.extend(possible.iter().filter(|thing| match **thing {
                             MoveType::Capture(..)
                             | MoveType::CapturePromotion(..)
-                            | MoveType::EnPassant(..) => false,
+                            | MoveType::EnPassant(..)
+                            | MoveType::Castle(..) => false,
                             MoveType::Move(..) | MoveType::MovePromotion(..) => true,
                         }));
                         let mut possible = HashSet::new();
@@ -250,7 +257,9 @@ impl Game {
                             MoveType::Capture(..)
                             | MoveType::CapturePromotion(..)
                             | MoveType::EnPassant(..) => true,
-                            MoveType::Move(..) | MoveType::MovePromotion(..) => false,
+                            MoveType::Move(..)
+                            | MoveType::MovePromotion(..)
+                            | MoveType::Castle(..) => false,
                         }));
                         // check if last move was from an enemy pawn and if it was 2 spaces away
                         let new_enpessant = self.moves.last().and_then(|last_move| {
@@ -508,7 +517,8 @@ impl Game {
                                         }
                                         MoveType::Move(..)
                                         | MoveType::MovePromotion(..)
-                                        | MoveType::EnPassant(..) => false,
+                                        | MoveType::EnPassant(..)
+                                        | MoveType::Castle(..) => false,
                                     }
                                 })
                             })
@@ -598,6 +608,16 @@ impl Game {
                 self.board.insert(None, pos_c);
                 self.board.insert(Some(piece), pos_n);
             }
+            MoveType::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))) => {
+                self.board.insert(None, pos_c);
+                self.board.insert(None, pos_k);
+                self.board.insert(Some(king), new_k);
+                self.board.insert(Some(castle), new_c);
+                match Color::from(king) {
+                    Color::Black => self.castling_moves.black = Castling::None,
+                    Color::White => self.castling_moves.white = Castling::None,
+                }
+            }
         };
         self.moves.push(Move {
             move_type: r#move,
@@ -671,6 +691,19 @@ impl Game {
                     self.board.insert(Some(piece), pos_o);
                     self.board.insert(Some(piece_c), pos_c);
                     self.board.insert(None, pos_n);
+                }
+                Move {
+                    move_type: MoveType::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))),
+                    // promotion: _,
+                    en_passant,
+                    castling,
+                } => {
+                    self.board.insert(Some(castle), pos_c);
+                    self.board.insert(Some(king), pos_k);
+                    self.board.insert(None, new_k);
+                    self.board.insert(None, new_c);
+                    self.en_passant = en_passant;
+                    self.castling_moves = castling;
                 }
             }
         }
