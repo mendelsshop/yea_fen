@@ -4,6 +4,8 @@
 /// stuff that has to do with making chess moves
 pub mod moves;
 use std::{error::Error, fmt, str::FromStr};
+
+use moves::Game;
 macro_rules! impl_default {
     ($type:ty) => {
         impl Default for $type {
@@ -243,6 +245,20 @@ pub struct GameState {
     /// En_passant moves available, vec of row and column of En_passant(s)
     en_passant: Option<Pos>,
 }
+
+impl From<Game> for GameState {
+    fn from(value: Game) -> Self {
+        Self {
+            board: value.board,
+            active_color: value.active_color,
+            full_move_clock: value.full_move_clock,
+            half_move_clock: value.half_move_clock,
+            castling_moves: value.castling_moves,
+            en_passant: value.en_passant,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 /// The castling option for both player
 pub struct CastlingOptions {
