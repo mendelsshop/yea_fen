@@ -4,7 +4,7 @@ use std::{
     ops::Range,
 };
 
-use crate::{Board, CastlingOptions, Color, Colored, GameState, Piece, Pos};
+use crate::{Board, Castling, CastlingOptions, Color, Colored, GameState, Piece, Pos};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// Represents a move which can be a capture of an enemy piece or a move to an empty cell
@@ -21,6 +21,7 @@ pub struct Move {
     pub(crate) move_type: MoveType<Pos, Colored<Piece>>,
     // pub(crate) promotion: Option<Colored<Piece>>,
     pub(crate) en_passant: Option<Pos>,
+    pub(crate) castling: CastlingOptions,
 }
 
 impl fmt::Display for MoveType<Pos, Colored<Piece>> {
@@ -542,13 +543,40 @@ impl Game {
         r#move: MoveType<Pos, Colored<Piece>>,
         promotion: Option<Colored<Piece>>,
     ) {
+        let castling_bak = self.castling_moves;
         match r#move {
-            MoveType::Capture((pos, piece), (pos_c, _)) | MoveType::Move((pos, piece), pos_c) => {
+            MoveType::Move((pos, piece), pos_c) => {
                 self.board.insert(None, pos);
                 self.board.insert(Some(piece), pos_c);
+                self.set_castling(pos, piece);
             }
-            MoveType::CapturePromotion((pos, _), (pos_c, _))
-            | MoveType::MovePromotion((pos, _), pos_c) => {
+            MoveType::Capture((pos, piece), (pos_c, piece_c)) => {
+                self.board.insert(None, pos);
+                self.board.insert(Some(piece), pos_c);
+                // here we have to account for both the piece that was captured and the piece that did the capturing
+
+                self.set_castling(pos, piece);
+                self.set_castling(pos_c, piece_c);
+            }
+            MoveType::CapturePromotion((pos, _), (pos_c, piece_c)) => {
+                if let Some(promotion) = promotion {
+                    match promotion {
+                        Colored::White(piece) | Colored::Black(piece) => {
+                            if piece != Piece::Queen
+                                && piece != Piece::Rook
+                                && piece != Piece::Bishop
+                                && piece != Piece::Knight
+                            {
+                                return;
+                            }
+                        }
+                    }
+                    self.board.insert(None, pos);
+                    self.board.insert(Some(promotion), pos_c);
+                    self.set_castling(pos_c, piece_c);
+                }
+            }
+            MoveType::MovePromotion((pos, _), pos_c) => {
                 if let Some(promotion) = promotion {
                     match promotion {
                         Colored::White(piece) | Colored::Black(piece) => {
@@ -570,13 +598,38 @@ impl Game {
                 self.board.insert(None, pos_c);
                 self.board.insert(Some(piece), pos_n);
             }
-        }
+        };
         self.moves.push(Move {
             move_type: r#move,
             //  promotion,
             en_passant: self.en_passant,
+            castling: castling_bak,
         });
         self.en_passant = None;
+    }
+
+    fn set_castling(&mut self, pos: Pos, piece: Colored<Piece>) {
+        match piece {
+            Colored::Black(Piece::Rook) => {
+                if pos == Pos::new(8, 1) {
+                    self.castling_moves
+                        .remove(Color::Black, Castling::QueenSide);
+                } else if pos == Pos::new(8, 8) {
+                    self.castling_moves.remove(Color::Black, Castling::KingSide);
+                }
+            }
+            Colored::White(Piece::Rook) => {
+                if pos == Pos::new(1, 1) {
+                    self.castling_moves
+                        .remove(Color::White, Castling::QueenSide);
+                } else if pos == Pos::new(1, 8) {
+                    self.castling_moves.remove(Color::White, Castling::KingSide);
+                }
+            }
+            Colored::Black(Piece::King) => self.castling_moves.remove(Color::Black, Castling::Both),
+            Colored::White(Piece::King) => self.castling_moves.remove(Color::White, Castling::Both),
+            _ => {}
+        }
     }
 
     pub fn undo_move(&mut self) {
@@ -587,8 +640,10 @@ impl Game {
                         MoveType::Capture((pos, piece), (pos_c, piece_c))
                         | MoveType::CapturePromotion((pos, piece), (pos_c, piece_c)),
                     en_passant,
+                    castling,
                 } => {
                     self.en_passant = en_passant;
+                    self.castling_moves = castling;
                     self.board.insert(Some(piece), pos);
                     self.board.insert(Some(piece_c), pos_c);
                 }
@@ -598,8 +653,10 @@ impl Game {
                         MoveType::Move((pos, piece), blank_pos)
                         | MoveType::MovePromotion((pos, piece), blank_pos),
                     en_passant,
+                    castling,
                 } => {
                     self.en_passant = en_passant;
+                    self.castling_moves = castling;
                     self.board.insert(Some(piece), pos);
                     self.board.insert(None, blank_pos);
                 }
@@ -607,8 +664,10 @@ impl Game {
                     move_type: MoveType::EnPassant((pos_o, piece), (pos_c, piece_c), pos_n),
                     // promotion: _,
                     en_passant,
+                    castling,
                 } => {
                     self.en_passant = en_passant;
+                    self.castling_moves = castling;
                     self.board.insert(Some(piece), pos_o);
                     self.board.insert(Some(piece_c), pos_c);
                     self.board.insert(None, pos_n);
@@ -925,7 +984,7 @@ mod move_tests {
                 .map(|((pos, piece), moves)| {
                     let moves = moves
                         .iter()
-                        .map(|pos| format!("{} ", pos.to_string()))
+                        .map(|pos| format!("{} ", pos))
                         .collect::<String>();
                     format!("\n{} at {} with moves {}", pos, piece, moves)
                 })
@@ -943,7 +1002,7 @@ mod move_tests {
 
         let i = moves[&(Pos::new(2, 2), Colored::White(Piece::Pawn))].clone();
         let mut i = i.iter();
-        let i = i.nth(0).unwrap();
+        let i = i.next().unwrap();
 
         game_state.do_move(*i, None);
         println!("{}", game_state.board);
@@ -966,7 +1025,7 @@ mod move_tests {
                 .map(|((pos, piece), moves)| {
                     let moves = moves
                         .iter()
-                        .map(|pos| format!("{} ", pos.to_string()))
+                        .map(|pos| format!("{} ", pos))
                         .collect::<String>();
                     format!("\n{} at {} with moves {}", pos, piece, moves)
                 })
@@ -986,7 +1045,7 @@ mod move_tests {
         println!("{}", game_state.board);
         let i = moves[&(Pos::new(2, 8), Colored::Black(Piece::Pawn))].clone();
         let mut i = i.iter();
-        let i = i.nth(0).unwrap();
+        let i = i.next().unwrap();
         game_state.do_move(*i, Some(Colored::Black(Piece::Queen)));
         println!("{}", game_state.board);
 

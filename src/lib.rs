@@ -266,12 +266,42 @@ pub struct CastlingOptions {
     white: Castling,
 }
 
+impl Castling {
+    fn remove(&mut self, castling: Self) {
+        let new_self = match (&self, castling) {
+            (Self::Both, Self::None) => Self::Both,
+            (Self::Both | Self::KingSide, Self::QueenSide) | (Self::KingSide, Self::None) => {
+                Self::KingSide
+            }
+            (Self::QueenSide | Self::Both, Self::KingSide) | (Self::QueenSide, Self::None) => {
+                Self::QueenSide
+            }
+            (Self::QueenSide, Self::QueenSide | Self::Both)
+            | (Self::None, _)
+            | (Self::KingSide | Self::Both, Self::Both)
+            | (Self::KingSide, Self::KingSide) => Self::None,
+        };
+        *self = new_self;
+    }
+}
+
 impl CastlingOptions {
     /// the default castling options (`Castling::Both` for both players)
     pub const fn new() -> Self {
         Self {
             black: Castling::Both,
             white: Castling::Both,
+        }
+    }
+
+    fn remove(&mut self, color: Color, castling: Castling) {
+        match color {
+            Color::Black => {
+                self.black.remove(castling);
+            }
+            Color::White => {
+                self.white.remove(castling);
+            }
         }
     }
 }
