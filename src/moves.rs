@@ -358,7 +358,8 @@ impl Game {
         player: Color,
     ) -> HashMap<(Pos, Colored<Piece>), HashSet<MoveType<Pos, Colored<Piece>>>> {
         let mut ret = self.get_all_moves(player);
-        ret = ret.iter()
+        ret = ret
+            .iter()
             .filter_map(
                 |((pos, piece), moves)| -> Option<(
                     (Pos, Colored<Piece>),
@@ -385,7 +386,8 @@ impl Game {
                                         MoveType::Capture((_, _), (_, piece)) => {
                                             if Color::from(*piece) == player {
                                                 let piece = match piece {
-                                                    Colored::White(piece) | Colored::Black(piece) => piece,
+                                                    Colored::White(piece)
+                                                    | Colored::Black(piece) => piece,
                                                 };
                                                 piece == &Piece::King
                                                 // piece == &Colored::White(Piece::King) || piece == &Colored::Black(Piece::King)
@@ -413,11 +415,11 @@ impl Game {
                 },
             )
             .collect();
-            if ret.is_empty() {
-                // check if king is in check
-                // if king is in check then the game is over
-                // if king is not in check then the game is a draw
-            }
+        if ret.is_empty() {
+            // check if king is in check
+            // if king is in check then the game is over
+            // if king is not in check then the game is a draw
+        }
 
         // one way to figure out if a move is legal
         // is to play a move and see if any of the oppenets moves is to capture the king
