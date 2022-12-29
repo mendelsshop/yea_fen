@@ -721,7 +721,7 @@ mod tests {
     }
     #[test]
     fn parse_with_en_pessant() {
-        let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2";
+        let fen = "rnbqkbnr/ppp2ppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3";
         let gamestate = GameState::from_str(fen);
         assert!(gamestate.is_ok());
         let gamestate = gamestate.unwrap();
