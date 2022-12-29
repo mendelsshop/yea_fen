@@ -1103,4 +1103,12 @@ mod move_tests {
         game_state.do_move(*i, None);
         println!("{}", game_state.board);
     }
+
+    #[test]
+    fn valid_moves() {
+        let mut game = Game::from(GameState::from_str("r2qk2r/pp2ppbp/2n2np1/1B1p4/3pP3/5N2/PPP2PPP/RNBQ1RK1 w kq - 0 2").unwrap());
+        println!("{}", game.board);
+        let moves = game.get_all_valid_moves(Color::Black);
+        assert_eq!(moves.contains_key(&(Pos::new(3, 6), Colored::Black(Piece::Knight))), false);
+    }
 }
