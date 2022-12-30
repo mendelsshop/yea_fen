@@ -304,6 +304,13 @@ impl CastlingOptions {
             }
         }
     }
+
+    fn get(self, color: Color) -> Castling {
+        match color {
+            Color::Black => self.black,
+            Color::White => self.white,
+        }
+    }
 }
 impl_default!(CastlingOptions);
 

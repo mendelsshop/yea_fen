@@ -152,6 +152,73 @@ impl From<GameState> for Game {
     }
 }
 impl Game {
+    /// the `castle_king_side` and `castle_queen_side` methods do not actually do a castle they just check if a castle is available and if it is and it to ret
+    /// we can also assume that the pieces are in there starting positions so we don'y have to around the board looking for them
+    fn castle_king_side(&self, player: Color, ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>) {
+        let ((king_pos, rook_pos), (new_k, new_r), (king, rook)) = match player {
+            Color::Black => (
+                (Pos { row: 8, column: 5 }, Pos { row: 8, column: 8 }),
+                (Pos { row: 8, column: 7 }, Pos { row: 8, column: 6 }),
+                (Colored::Black(Piece::King), Colored::Black(Piece::Rook)),
+            ),
+            Color::White => (
+                (Pos { row: 1, column: 5 }, Pos { row: 1, column: 8 }),
+                (Pos { row: 1, column: 7 }, Pos { row: 1, column: 6 }),
+                (Colored::White(Piece::King), Colored::White(Piece::Rook)),
+            ),
+        };
+        // let potential = HashSet::new();
+        for i in to_range(2) {
+            if i == 0 {
+                continue;
+            }
+            if let Some(pos_n) = king_pos.add_row_and_column(0, i) {
+                match self.board.get_cell(pos_n) {
+                    Some(Some(_)) => break,
+                    _ => {
+                        if i == 2 {
+                            ret.insert(MoveType::Castle(
+                                (king_pos, (new_k, king)),
+                                (rook_pos, (new_r, rook)),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fn castle_queen_side(&self, player: Color, ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>) {
+        let ((king_pos, rook_pos), (new_k, new_r), (king, rook)) = match player {
+            Color::Black => (
+                (Pos { row: 8, column: 5 }, Pos { row: 8, column: 1 }),
+                (Pos { row: 8, column: 3 }, Pos { row: 8, column: 4 }),
+                (Colored::Black(Piece::King), Colored::Black(Piece::Rook)),
+            ),
+            Color::White => (
+                (Pos { row: 1, column: 5 }, Pos { row: 1, column: 1 }),
+                (Pos { row: 1, column: 3 }, Pos { row: 1, column: 4 }),
+                (Colored::White(Piece::King), Colored::White(Piece::Rook)),
+            ),
+        };
+        for i in to_range(-3) {
+            if i == 0 {
+                continue;
+            }
+            if let Some(pos_n) = king_pos.add_row_and_column(0, i) {
+                if let Some(Some(_)) = self.board.get_cell(pos_n) {
+                    break;
+                }
+                println!("i: {}", i);
+                if i == -3 {
+                    println!("adding castle");
+                    ret.insert(MoveType::Castle(
+                        (king_pos, (new_k, king)),
+                        (rook_pos, (new_r, rook)),
+                    ));
+                }
+            }
+        }
+    }
     /// This will return the possible moves for a given piece (which is specified by its position)
     /// it will no return moves that are blocked by other pieces
     /// but it does not account for checks so it can return illegal moves
@@ -168,6 +235,24 @@ impl Game {
                     Piece::King => {
                         self.horiz_and_vert(pos, color, *piece, 1, &mut ret);
                         self.diag(pos, color, *piece, 1, &mut ret);
+
+                        // to figure out if we can castle
+                        // first we see if the king is in check by by generating all the enemy moves and seeing if theres is a possiblity of the king being captured
+                        // we first need to get the castling rights of the given piece's color
+                        // then we need to use self.horiz_half to determine if all the spaces between thr king & rook are empty
+                        // and we need to check that the 2 spaces closest to the king are also not in check
+                        // if they are not in check then we can add the castle to ret
+                        // the check validation we will do in get_all_valid_moves
+                        let casling = self.castling_moves.get(color);
+                        match casling {
+                            Castling::None => {}
+                            Castling::KingSide => self.castle_king_side(color, &mut ret),
+                            Castling::QueenSide => self.castle_queen_side(color, &mut ret),
+                            Castling::Both => {
+                                self.castle_king_side(color, &mut ret);
+                                self.castle_queen_side(color, &mut ret);
+                            }
+                        }
                     }
                     Piece::Queen => {
                         self.horiz_and_vert(pos, color, *piece, 7, &mut ret);
@@ -308,6 +393,7 @@ impl Game {
                             }
                             None
                         });
+                        // todo: the en_passant might not be valid so we need to set the en_passant in get_all_valid_moves
                         if let Some(new_enpessant) = new_enpessant {
                             self.en_passant = Some(new_enpessant);
                         }
@@ -1208,5 +1294,75 @@ mod move_tests {
             moves.contains_key(&(Pos::new(3, 6), Colored::Black(Piece::Knight))),
             false
         );
+    }
+
+    #[test]
+    fn castles() {
+        let mut game = Game::from(
+            GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4")
+                .unwrap(),
+        );
+        let moves = game.get_piece_moves(Pos { row: 1, column: 5 });
+        println!("{:?}", moves);
+        println!("{}", game.board);
+        // do the castle
+        let i = moves
+            .iter()
+            .find(|movetype| match **movetype {
+                MoveType::Castle(..) => true,
+                _ => false,
+            })
+            .unwrap();
+        game.do_move(*i, None);
+        println!("{}", game.board);
+        let mut game = Game::from(
+            GameState::from_str(
+                "rnbqk2r/pppp1ppp/3b3n/4p3/4P3/3P1P2/PPP1B1PP/RNBQK1NR b KQkq - 0 4",
+            )
+            .unwrap(),
+        );
+        let moves = game.get_piece_moves(Pos { row: 8, column: 5 });
+        println!("{:?}", moves);
+        println!("{}", game.board);
+        // do the castle
+        let i = moves
+            .iter()
+            .find(|movetype| match **movetype {
+                MoveType::Castle(..) => true,
+                _ => false,
+            })
+            .unwrap();
+        game.do_move(*i, None);
+        println!("{}", game.board);
+        let mut game = Game::from(
+            GameState::from_str(
+                "r3kbnr/ppp1pppp/2nq4/3p1b2/3P1B2/2NQ4/PPP1PPPP/R3KBNR w KQkq - 6 5",
+            )
+            .unwrap(),
+        );
+        let moves_white = game.get_piece_moves(Pos { row: 1, column: 5 });
+        let moves_black = game.get_piece_moves(Pos { row: 8, column: 5 });
+        println!("{:?}", moves_white);
+        println!("{:?}", moves_black);
+        println!("{}", game.board);
+        // do the castle
+        let i = moves_white
+            .iter()
+            .find(|movetype| match **movetype {
+                MoveType::Castle(..) => true,
+                _ => false,
+            })
+            .unwrap();
+        game.do_move(*i, None);
+        println!("{}", game.board);
+        let i = moves_black
+            .iter()
+            .find(|movetype| match **movetype {
+                MoveType::Castle(..) => true,
+                _ => false,
+            })
+            .unwrap();
+        game.do_move(*i, None);
+        println!("{}", game.board);
     }
 }
