@@ -535,8 +535,6 @@ impl Game {
             .collect::<HashSet<MoveType<Pos, Colored<Piece>>>>()
     }
 
-    // fn in_check_
-
     pub fn get_all_valid_moves(&mut self, player: Color) -> HashSet<MoveType<Pos, Colored<Piece>>> {
         let mut ret = self.get_all_moves(player);
         ret.retain(|pos| {
@@ -629,26 +627,17 @@ impl Game {
                         });
                         checks.push(in_check(&enemy_moves, player));
                         self.undo_move();
+                        self.undo_move();
                         return !checks.contains(&true);
                     }
                     _ => return false,
                 }
             }
-            // check if its a pawn promotion
-            // let piece = match piece {
-            //     Colored::White(piece) | Colored::Black(piece) => piece,
-            // };
-            // if piece == &Piece::Pawn {
-            //     if let MoveType::MovePromotion(_, _)
-            //     | MoveType::CapturePromotion(_, _) = pos
-            //     {
-            //         self.do_move(*pos, Some(Colored::White(Piece::Queen)));
-            //     } else {
-            //         self.do_move(*pos, None);
-            //     }
-            // } else {
-            //     self.do_move(*pos, None);
-            // }
+
+            match player {
+                Color::White => self.do_move(*pos, Some(Colored::White(Piece::Queen))),
+                Color::Black => self.do_move(*pos, Some(Colored::Black(Piece::Queen))),
+            }
 
             let openent = match player {
                 Color::White => Color::Black,
@@ -656,164 +645,7 @@ impl Game {
             };
             let enemy_moves = self.get_all_moves(openent);
             self.undo_move();
-            !enemy_moves.iter().any(|move_type| {
-                // moves.iter().any(|move_type| {
-                match move_type {
-                    MoveType::Capture((_, _), (_, piece))
-                    | MoveType::CapturePromotion((_, _), (_, piece)) => {
-                        if Color::from(*piece) == player {
-                            let piece = match piece {
-                                Colored::White(piece) | Colored::Black(piece) => piece,
-                            };
-                            piece == &Piece::King
-                            // piece == &Colored::White(Piece::King) || piece == &Colored::Black(Piece::King)
-                        } else {
-                            false
-                        }
-                    }
-                    MoveType::Move(..)
-                    | MoveType::MovePromotion(..)
-                    | MoveType::EnPassant(..)
-                    | MoveType::Castle(..) => false,
-                }
-            })
-            // let moves = {
-            //     // .iter()
-            //     // .filter(|pos| {
-            //         let enemy_moves = self.get_all_moves(match player {
-            //             Color::White => Color::Black,
-            //             Color::Black => Color::White,
-            //         });
-            //         if let MoveType::Castle((pos_k, (_, king)), (pos_r, _)) = pos {
-            //             // check if the king is in check
-            //             // then check if the king pos (+ if kingside, - if queenside) 1 is in check
-            //             // then check if the king pos (+ if kingside, - if queenside) 2 is in check
-            //             // if any of these are true then the move is invalid
-            //             let mut checks = vec![];
-            //             match pos_r {
-            //                 // queenside
-            //                 Pos { row: 8, column: 1 } | Pos { row: 1, column: 1 } => {
-            //                     checks.push(in_check(enemy_moves, player));
-            //                     // move the king 1 to the left
-            //                     let move_ = MoveType::Move(
-            //                         (*pos_k, *king),
-            //                         Pos {
-            //                             row: pos_k.row,
-            //                             column: pos_k.column - 1,
-            //                         },
-            //                     );
-            //                     self.do_move(move_, None);
-            //                     let enemy_moves = self.get_all_moves(match player {
-            //                         Color::White => Color::Black,
-            //                         Color::Black => Color::White,
-            //                     });
-            //                     checks.push(in_check(enemy_moves, player));
-            //                     // move the king 1 to the left
-            //                     let move_ = MoveType::Move(
-            //                         (*pos_k, *king),
-            //                         Pos {
-            //                             row: pos_k.row,
-            //                             column: pos_k.column - 2,
-            //                         },
-            //                     );
-            //                     self.do_move(move_, None);
-            //                     let enemy_moves = self.get_all_moves(match player {
-            //                         Color::White => Color::Black,
-            //                         Color::Black => Color::White,
-            //                     });
-            //                     checks.push(in_check(enemy_moves, player));
-            //                     self.do_move(**pos, None);
-            //                     self.undo_move();
-            //                     self.undo_move();
-            //                     return !checks.contains(&true);
-
-            //                 }
-            //                 // kingside
-            //                 Pos { row: 8, column: 8 } | Pos { row: 1, column: 8 } => {
-            //                     checks.push(in_check(enemy_moves, player));
-            //                     // move the king 1 to the right
-            //                     let move_ = MoveType::Move(
-            //                         (*pos_k, *king),
-            //                         Pos {
-            //                             row: pos_k.row,
-            //                             column: pos_k.column + 1,
-            //                         },
-            //                     );
-            //                     self.do_move(move_, None);
-            //                     let enemy_moves = self.get_all_moves(match player {
-            //                         Color::White => Color::Black,
-            //                         Color::Black => Color::White,
-            //                     });
-            //                     checks.push(in_check(enemy_moves, player));
-            //                     let move_ = MoveType::Move(
-            //                         (*pos_k, *king),
-            //                         Pos {
-            //                             row: pos_k.row,
-            //                             column: pos_k.column + 2,
-            //                         },
-            //                     );
-            //                     self.do_move(move_, None);
-            //                     let enemy_moves = self.get_all_moves(match player {
-            //                         Color::White => Color::Black,
-            //                         Color::Black => Color::White,
-            //                     });
-            //                     checks.push(in_check(enemy_moves, player));
-            //                     self.undo_move();
-            //                     return !checks.contains(&true);
-            //                 }
-            //                 _ => return false,
-            //             }
-            //         }
-            //         // check if its a pawn promotion
-            //         // let piece = match piece {
-            //         //     Colored::White(piece) | Colored::Black(piece) => piece,
-            //         // };
-            //         // if piece == &Piece::Pawn {
-            //         //     if let MoveType::MovePromotion(_, _)
-            //         //     | MoveType::CapturePromotion(_, _) = pos
-            //         //     {
-            //         //         self.do_move(**pos, Some(Colored::White(Piece::Queen)));
-            //         //     } else {
-            //         //         self.do_move(**pos, None);
-            //         //     }
-            //         // } else {
-            //         //     self.do_move(**pos, None);
-            //         // }
-
-            //         let openent = match player {
-            //             Color::White => Color::Black,
-            //             Color::Black => Color::White,
-            //         };
-            //         let enemy_moves = self.get_all_moves(openent);
-            //         self.undo_move();
-            //         !enemy_moves.iter().any(|move_type| {
-            //             // moves.iter().any(|move_type| {
-            //                 match move_type {
-            //                     MoveType::Capture((_, _), (_, piece))
-            //                     | MoveType::CapturePromotion((_, _), (_, piece)) => {
-            //                         if Color::from(*piece) == player {
-            //                             let piece = match piece {
-            //                                 Colored::White(piece)
-            //                                 | Colored::Black(piece) => piece,
-            //                             };
-            //                             piece == &Piece::King
-            //                             // piece == &Colored::White(Piece::King) || piece == &Colored::Black(Piece::King)
-            //                         } else {
-            //                             false
-            //                         }
-            //                     }
-            //                     MoveType::Move(..)
-            //                     | MoveType::MovePromotion(..)
-            //                     | MoveType::EnPassant(..)
-            //                     | MoveType::Castle(..) => false,
-            //                 }
-            //             })
-            //         // })
-            //     // })
-            // };
-            // .copied()
-            // .collect::<HashSet<MoveType<Pos, Colored<Piece>>>>();
-            // todo!()
+            !in_check(&enemy_moves, player)
         });
         if ret.is_empty() {
             // check if king is in check
@@ -991,7 +823,7 @@ impl Game {
 }
 
 fn in_check(enemy_moves: &HashSet<MoveType<Pos, Colored<Piece>>>, player: Color) -> bool {
-    !enemy_moves.iter().any(|move_type| {
+    enemy_moves.iter().any(|move_type| {
         // moves.iter().any(|move_type| {
         match move_type {
             MoveType::Capture((_, _), (_, piece))
@@ -1533,10 +1365,21 @@ mod move_tests {
         );
         println!("{}", game.board);
         let moves = game.get_all_valid_moves(Color::Black);
-        // assert_eq!(
-        //     moves.contains_key(&(Pos::new(3, 6), Colored::Black(Piece::Knight))),
-        //     false
-        // );
+        println!(
+            "{:?}",
+            moves
+                .iter()
+                .map(|movetype| movetype.to_string())
+                .collect::<Vec<_>>()
+        );
+        // check that there are no moves for the knight at c6
+        assert_eq!(
+            moves.iter().any(|movetype| match *movetype {
+                MoveType::Move((pos_o, _), _) => pos_o == Pos::new(6, 3),
+                _ => false,
+            }),
+            false
+        );
     }
 
     #[test]
@@ -1605,5 +1448,30 @@ mod move_tests {
             .unwrap();
         game.do_move(*i, None);
         println!("{}", game.board);
+    }
+
+    #[test]
+    fn valid_castles() {
+        let mut game = Game::from(
+            GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4")
+                .unwrap(),
+        );
+        let moves = game.get_all_valid_moves(Color::White);
+        println!("{}", game.board);
+        println!(
+            "{:?}",
+            moves
+                .iter()
+                .map(|movetype| movetype.to_string())
+                .collect::<Vec<_>>()
+        );
+        // check that there are no moves for the knight at c6
+        assert_eq!(
+            moves.iter().any(|movetype| match *movetype {
+                MoveType::Castle(..) => true,
+                _ => false,
+            }),
+            true
+        );
     }
 }
