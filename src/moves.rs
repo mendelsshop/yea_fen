@@ -45,7 +45,7 @@ impl fmt::Display for MoveType<Pos, Colored<Piece>> {
                 "castle at {}:{} {}:{} from {} and {}",
                 new_k, king, new_c, castle, pos_k, pos_c
             ),
-            MoveType::Check => todo!(),
+            Self::Check => todo!(),
         }
     }
 }
