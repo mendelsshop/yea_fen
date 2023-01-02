@@ -1232,7 +1232,6 @@ mod move_tests {
                 MoveType::EnPassant(_, _, _) => false,
                 MoveType::Castle(_, _) => false,
                 MoveType::Check => false,
-                
             }),
             false
         )
