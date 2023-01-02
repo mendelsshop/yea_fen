@@ -31,7 +31,11 @@ impl MoveType<Pos, Colored<Piece>> {
                     unreachable!()
                 }
             }
-            Self::Capture((_, _), (pos, _)) | Self::Move((_, _), pos) | Self::CapturePromotion((_, _), (pos, _)) |Self::MovePromotion((_, _), pos) |Self::EnPassant((_, _), (pos, _), _) => *pos,
+            Self::Capture((_, _), (pos, _))
+            | Self::Move((_, _), pos)
+            | Self::CapturePromotion((_, _), (pos, _))
+            | Self::MovePromotion((_, _), pos)
+            | Self::EnPassant((_, _), (pos, _), _) => *pos,
             Self::Check => unreachable!(),
         }
     }
