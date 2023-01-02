@@ -1,8 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{GameState, Colored};
+use crate::{Colored, GameState};
 
-// define a random function that generates random number based on the time 
+// define a random function that generates random number based on the time
 // and returns the number
 fn random() -> Option<u32> {
     let now = SystemTime::now();
@@ -25,8 +25,13 @@ pub fn do_random_move(game: &mut GameState) -> bool {
     let r#move = moves[rng as usize];
     // check if the move is a promotion
     let promotion = match *r#move {
-        crate::moves::MoveType::Capture(_, _) | crate::moves::MoveType::Move(_, _) | crate::moves::MoveType::EnPassant(_, _, _) | crate::moves::MoveType::Castle(_, _) | crate::moves::MoveType::Check => None,
-        crate::moves::MoveType::CapturePromotion(_, _) | crate::moves::MoveType::MovePromotion(_, _) => Some(match game.active_color {
+        crate::moves::MoveType::Capture(_, _)
+        | crate::moves::MoveType::Move(_, _)
+        | crate::moves::MoveType::EnPassant(_, _, _)
+        | crate::moves::MoveType::Castle(_, _)
+        | crate::moves::MoveType::Check => None,
+        crate::moves::MoveType::CapturePromotion(_, _)
+        | crate::moves::MoveType::MovePromotion(_, _) => Some(match game.active_color {
             crate::Color::White => match rng % 4 {
                 0 => Colored::White(crate::Piece::Queen),
                 1 => Colored::White(crate::Piece::Rook),
@@ -41,13 +46,10 @@ pub fn do_random_move(game: &mut GameState) -> bool {
                 3 => Colored::Black(crate::Piece::Knight),
                 _ => return false,
             },
-        
         }),
-        
     };
     game.do_move(*r#move, promotion);
     true
-
 }
 
 #[cfg(test)]
