@@ -782,6 +782,18 @@ impl GameState {
             half_move_clock: self.half_move_clock,
         });
         self.en_passant = None;
+        match r#move {
+            MoveType::Move(_, _) => self.half_move_clock += 1,
+            MoveType::Capture(_, _) => self.half_move_clock = 0,
+            MoveType::CapturePromotion(_, _) => self.half_move_clock = 0,
+            MoveType::MovePromotion(_, _) => self.half_move_clock += 1,
+            MoveType::EnPassant(_, _, _) => self.half_move_clock = 0,
+            MoveType::Castle(_, _) => self.half_move_clock = 0,
+            MoveType::Check => self.half_move_clock += 1,
+        }
+        if self.active_color == Color::Black {
+            self.full_move_clock += 1;
+        }
         self.active_color = match self.active_color {
             Color::White => Color::Black,
             Color::Black => Color::White,
