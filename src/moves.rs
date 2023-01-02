@@ -25,17 +25,13 @@ impl MoveType<Pos, Colored<Piece>> {
                     *new_k
                 } else if piece == Some(*rook) {
                     *new_c
-                } else if let None = piece {
+                } else if piece.is_none() {
                     *new_k
                 } else {
                     unreachable!()
                 }
             }
-            Self::Capture((_, _), (pos, _)) => *pos,
-            Self::Move((_, _), pos) => *pos,
-            Self::CapturePromotion((_, _), (pos, _)) => *pos,
-            Self::MovePromotion((_, _), pos) => *pos,
-            Self::EnPassant((_, _), (pos, _), _) => *pos,
+            Self::Capture((_, _), (pos, _)) | Self::Move((_, _), pos) | Self::CapturePromotion((_, _), (pos, _)) |Self::MovePromotion((_, _), pos) |Self::EnPassant((_, _), (pos, _), _) => *pos,
             Self::Check => unreachable!(),
         }
     }
