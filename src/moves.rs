@@ -17,6 +17,32 @@ pub enum MoveType<POS, PIECE> {
 }
 
 impl MoveType<Pos, Colored<Piece>> {
+    pub fn from(&self, piece: (Pos, Option<Colored<Piece>>)) -> Option<Pos> {
+        // check if the piece is the piece that is doing the move
+        match self {
+            Self::Castle((old_r, (new_c, rook)), (old_k, (new_k, king))) => {
+                if piece == (*old_k, Some(*king)) {
+                    Some(*new_k)
+                } else if piece == (*old_r, Some(*rook)) {
+                    Some(*new_c)
+                } else {
+                    None
+                }
+            }
+            Self::Capture((pos, _), _)
+            | Self::Move((pos, _), _)
+            | Self::CapturePromotion((pos, _), _)
+            | Self::MovePromotion((pos, _), _)
+            | Self::EnPassant((pos, _), _, _) => {
+                if piece.0 == *pos {
+                    Some(piece.0)
+                } else {
+                    None
+                }
+            }
+            Self::Check => None,
+        }
+    }
     pub fn to(&self, piece: Option<Colored<Piece>>) -> Pos {
         // if its a castle, then check if its a king or a rook and return the new position of the king or the rook
         match self {
