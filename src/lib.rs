@@ -245,7 +245,6 @@ pub struct GameState {
     /// En_passant moves available, vec of row and column of En_passant(s)
     en_passant: Option<Pos>,
 
-    
     pub(crate) moves: Vec<Move>,
     pub(crate) result: GameResult,
 }
