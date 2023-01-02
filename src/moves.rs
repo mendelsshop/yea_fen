@@ -774,6 +774,10 @@ impl GameState {
             castling: castling_bak,
         });
         self.en_passant = None;
+        self.active_color = match self.active_color {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        };
     }
 
     fn set_castling(&mut self, pos: Pos, piece: Colored<Piece>) {
@@ -864,6 +868,10 @@ impl GameState {
                 }
             }
         }
+        self.active_color = match self.active_color {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        };
     }
 }
 
