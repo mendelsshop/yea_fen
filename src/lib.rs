@@ -350,7 +350,7 @@ impl GameState {
     }
 
     /// returns the `gameresult` of the game
-    pub const fn get_gameresult(&self) ->  GameResult {
+    pub const fn get_gameresult(&self) -> GameResult {
         self.result
     }
 }
