@@ -3,6 +3,7 @@
 #![allow(clippy::must_use_candidate)]
 /// stuff that has to do with making chess moves
 pub mod moves;
+pub mod random_engine;
 use std::{error::Error, fmt, str::FromStr};
 
 use moves::{GameResult, Move};
