@@ -249,21 +249,6 @@ pub struct GameState {
     pub(crate) result: GameResult,
 }
 
-// impl From<Game> for GameState {
-//     fn from(value: Game) -> Self {
-//         Self {
-//             board: value.board,
-//             active_color: value.active_color,
-//             full_move_clock: value.full_move_clock,
-//             half_move_clock: value.half_move_clock,
-//             castling_moves: value.castling_moves,
-//             en_passant: value.en_passant,
-
-//             moves: value.
-//         }
-//     }
-// }
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 /// The castling option for both player
 pub struct CastlingOptions {

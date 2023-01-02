@@ -294,7 +294,7 @@ impl GameState {
                                         ret.insert(MoveType::Move((pos, *piece), pos_n));
                                     }
                                     Some(Some(piece_c)) => {
-                                        if !(Color::from(*piece) == color) {
+                                        if !(Color::from(*piece_c) == color) {
                                             ret.insert(MoveType::Capture(
                                                 (pos, *piece),
                                                 (pos_n, *piece_c),
@@ -309,7 +309,7 @@ impl GameState {
                                         ret.insert(MoveType::Move((pos, *piece), pos_n));
                                     }
                                     Some(Some(piece_c)) => {
-                                        if !(Color::from(*piece) == color) {
+                                        if !(Color::from(*piece_c) == color) {
                                             ret.insert(MoveType::Capture(
                                                 (pos, *piece),
                                                 (pos_n, *piece_c),
@@ -1503,6 +1503,22 @@ mod move_tests {
                 _ => false,
             }),
             true
+        );
+    }
+
+    #[test]
+    fn test_knight_capturing() {
+        let mut game =
+            GameState::from_str("rnbqkbnr/ppp1pppp/8/3p4/8/2N5/PPPPPPPP/R1BQKBNR w KQkq - 2 2")
+                .unwrap();
+        let moves = game.get_piece_moves(Pos { row: 3, column: 3 });
+        println!("{}", game.board);
+        println!(
+            "{:?}",
+            moves
+                .iter()
+                .map(|movetype| movetype.to_string())
+                .collect::<Vec<_>>()
         );
     }
 }
