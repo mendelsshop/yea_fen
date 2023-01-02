@@ -15,6 +15,31 @@ pub enum MoveType<POS, PIECE> {
     /// when the piece doiing the moves is capturing the enemy king
     Check,
 }
+
+impl MoveType<Pos, Colored<Piece>> {
+    pub fn to (&self, piece: Option<Colored<Piece>>) -> Pos {
+        // if its a castle, then check if its a king or a rook and return the new position of the king or the rook
+        match self {
+            Self::Castle((_, (new_c, rook)), (_,  (new_k, king))) => {
+                if piece == Some(*king) {
+                    *new_k
+                } else if piece == Some(*rook) {
+                    *new_c
+                } else if let None = piece {
+                    *new_k
+                } else {
+                    unreachable!()
+                }
+            }
+            Self::Capture((_, _), (pos, _)) => *pos,
+            Self::Move((_, _), pos) => *pos,
+            Self::CapturePromotion((_, _), (pos, _)) => *pos,
+            Self::MovePromotion((_, _), pos) => *pos,
+            Self::EnPassant((_, _), (pos, _), _) => *pos,
+            Self::Check => unreachable!(),
+        }
+    }
+}
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Move {
     pub(crate) move_type: MoveType<Pos, Colored<Piece>>,
