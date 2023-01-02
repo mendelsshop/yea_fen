@@ -65,6 +65,10 @@ impl MoveType<Pos, Colored<Piece>> {
             Self::Check => unreachable!(),
         }
     }
+
+    pub const fn is_special(&self) -> bool {
+        matches!(self, Self::Castle(_, _) | Self::EnPassant(_, _, _))
+    }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Move {
@@ -72,6 +76,8 @@ pub struct Move {
     // pub(crate) promotion: Option<Colored<Piece>>,
     pub(crate) en_passant: Option<Pos>,
     pub(crate) castling: CastlingOptions,
+    pub(crate) half_move_clock: usize,
+    pub(crate) full_move_clock: usize,
 }
 
 impl fmt::Display for MoveType<Pos, Colored<Piece>> {
@@ -772,6 +778,8 @@ impl GameState {
             //  promotion,
             en_passant: self.en_passant,
             castling: castling_bak,
+            full_move_clock: self.full_move_clock,
+            half_move_clock: self.half_move_clock,
         });
         self.en_passant = None;
         self.active_color = match self.active_color {
@@ -806,72 +814,41 @@ impl GameState {
 
     pub fn undo_move(&mut self) {
         if let Some(r#move) = self.moves.pop() {
-            match r#move {
-                Move {
-                    move_type:
-                        MoveType::Capture((pos, piece), (pos_c, piece_c))
-                        | MoveType::CapturePromotion((pos, piece), (pos_c, piece_c)),
-                    en_passant,
-                    castling,
-                } => {
-                    self.en_passant = en_passant;
-                    self.castling_moves = castling;
+            match r#move.move_type {
+                MoveType::Capture((pos, piece), (pos_c, piece_c))
+                | MoveType::CapturePromotion((pos, piece), (pos_c, piece_c)) => {
                     self.board.insert(Some(piece), pos);
                     self.board.insert(Some(piece_c), pos_c);
                 }
 
-                Move {
-                    move_type:
-                        MoveType::Move((pos, piece), blank_pos)
-                        | MoveType::MovePromotion((pos, piece), blank_pos),
-                    en_passant,
-                    castling,
-                } => {
-                    self.en_passant = en_passant;
-                    self.castling_moves = castling;
+                MoveType::Move((pos, piece), blank_pos)
+                | MoveType::MovePromotion((pos, piece), blank_pos) => {
                     self.board.insert(Some(piece), pos);
                     self.board.insert(None, blank_pos);
                 }
-                Move {
-                    move_type: MoveType::EnPassant((pos_o, piece), (pos_c, piece_c), pos_n),
-                    // promotion: _,
-                    en_passant,
-                    castling,
-                } => {
-                    self.en_passant = en_passant;
-                    self.castling_moves = castling;
+                MoveType::EnPassant((pos_o, piece), (pos_c, piece_c), pos_n) => {
                     self.board.insert(Some(piece), pos_o);
                     self.board.insert(Some(piece_c), pos_c);
                     self.board.insert(None, pos_n);
                 }
-                Move {
-                    move_type: MoveType::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))),
-                    // promotion: _,
-                    en_passant,
-                    castling,
-                } => {
+                MoveType::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))) => {
                     self.board.insert(Some(castle), pos_c);
                     self.board.insert(Some(king), pos_k);
                     self.board.insert(None, new_k);
                     self.board.insert(None, new_c);
-                    self.en_passant = en_passant;
-                    self.castling_moves = castling;
                 }
-                Move {
-                    move_type: MoveType::Check,
-                    // promotion: _,
-                    en_passant,
-                    castling,
-                } => {
-                    self.en_passant = en_passant;
-                    self.castling_moves = castling;
-                }
+
+                MoveType::Check => {}
             }
+            self.en_passant = r#move.en_passant;
+            self.castling_moves = r#move.castling;
+            self.full_move_clock = r#move.full_move_clock;
+            self.half_move_clock = r#move.half_move_clock;
+            self.active_color = match self.active_color {
+                Color::White => Color::Black,
+                Color::Black => Color::White,
+            };
         }
-        self.active_color = match self.active_color {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        };
     }
 }
 
