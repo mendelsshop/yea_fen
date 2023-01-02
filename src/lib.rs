@@ -348,6 +348,11 @@ impl GameState {
     pub const fn get_en_passant(&self) -> Option<Pos> {
         self.en_passant
     }
+
+    /// returns the `gameresult` of the game
+    pub const fn get_gameresult(&self) ->  GameResult {
+        self.result
+    }
 }
 impl_default!(GameState);
 impl FromStr for GameState {
