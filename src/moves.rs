@@ -15,7 +15,7 @@ pub enum MoveType<POS, PIECE> {
     /// when the piece doiing the moves is capturing the enemy king
     Check,
 }
-
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Move {
     pub(crate) move_type: MoveType<Pos, Colored<Piece>>,
     // pub(crate) promotion: Option<Colored<Piece>>,
@@ -108,26 +108,8 @@ impl Pos {
         }
     }
 }
-pub struct Game {
-    /// part of the fen string that holds the state of the board
-    pub(crate) board: Board,
-    /// the color of the current player (black or white)
-    pub(crate) active_color: Color,
-    /// starts at 1
-    /// increments after both white and black go
-    pub(crate) full_move_clock: usize,
-    /// number of moves since the last pawn move or piece kill
-    /// increments after either white or black go
-    pub(crate) half_move_clock: usize,
-    /// castling moves available
-    pub(crate) castling_moves: CastlingOptions,
-    /// En_passant moves available, vec of row and column of En_passant(s)
-    pub(crate) en_passant: Option<Pos>,
 
-    pub(crate) moves: Vec<Move>,
-    pub(crate) result: GameResult,
-}
-
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum GameResult {
     CheckMate(Color),
     StaleMate,
@@ -135,22 +117,7 @@ pub enum GameResult {
     InProgress,
 }
 
-impl From<GameState> for Game {
-    fn from(value: GameState) -> Self {
-        // TODO: check if the game is over using get_valid_moves
-        Self {
-            board: value.board,
-            active_color: value.active_color,
-            full_move_clock: value.full_move_clock,
-            half_move_clock: value.half_move_clock,
-            castling_moves: value.castling_moves,
-            en_passant: value.en_passant,
-            moves: vec![],
-            result: GameResult::InProgress,
-        }
-    }
-}
-impl Game {
+impl GameState {
     /// the `castle_king_side` and `castle_queen_side` methods do not actually do a castle they just check if a castle is available and if it is and it to ret
     /// we can also assume that the pieces are in there starting positions so we don'y have to around the board looking for them
     fn castle_king_side(&self, player: Color, ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>) {
@@ -1021,7 +988,7 @@ mod move_tests {
     use std::{collections::HashSet, str::FromStr, time::Instant};
 
     use crate::{
-        moves::{Game, MoveType},
+        moves::{MoveType},
         Color, Colored, GameState, Piece, Pos,
     };
 
@@ -1118,7 +1085,7 @@ mod move_tests {
 
     #[test]
     fn test_semi_legal_moves() {
-        let mut game_state = Game::from(GameState::new());
+        let mut game_state = GameState::new();
         let pos_moves = game_state
             // .board
             .get_piece_moves(Pos::from_str("e1").unwrap());
@@ -1132,10 +1099,9 @@ mod move_tests {
             .get_piece_moves(Pos::from_str("b1").unwrap());
         assert_eq!(pos_moves.len(), 2);
 
-        let mut game_state = Game::from(
+        let mut game_state = 
             GameState::from_str("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
-                .unwrap(),
-        );
+                .unwrap();
         println!("{}", game_state.board);
         let pos_moves = game_state
             // .board
@@ -1159,10 +1125,9 @@ mod move_tests {
         assert_eq!(pos_moves.len(), 1);
 
         // test pawn capture
-        let mut game_state = Game::from(
+        let mut game_state = 
             GameState::from_str("rnbqkbnr/ppp1pppp/8/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
-                .unwrap(),
-        );
+                .unwrap();
         println!("{}", game_state.board);
         let pos_moves = game_state
             // .board
@@ -1172,7 +1137,7 @@ mod move_tests {
 
     #[test]
     fn generate_all_moves() {
-        let mut game_state = Game::from(GameState::new());
+        let mut game_state = GameState::new();
         println!(
             "{}",
             game_state
@@ -1186,7 +1151,7 @@ mod move_tests {
 
     #[test]
     fn board_insert() {
-        let mut game_state = Game::from(GameState::new());
+        let mut game_state = GameState::new();
         println!("{}", game_state.board);
         let moves = game_state
             // .board
@@ -1196,10 +1161,9 @@ mod move_tests {
 
         game_state.do_move(*i, None);
         println!("{}", game_state.board);
-        let mut game_state = Game::from(
+        let mut game_state = 
             GameState::from_str("2kr3r/ppp2p1p/1b4nQ/1P3b2/P7/2q2NBB/3N1P1P/R3K2R w KQ - 0 23")
-                .unwrap(),
-        );
+                .unwrap();
         let now = Instant::now();
         let valid_moves = game_state
             // .board
@@ -1240,7 +1204,7 @@ mod move_tests {
 
     #[test]
     fn test_promotion() {
-        let mut game_state = Game::from(GameState::from_str("8/8/8/8/8/8/7p/8 b - - 0 1").unwrap());
+        let mut game_state = GameState::from_str("8/8/8/8/8/8/7p/8 b - - 0 1").unwrap();
         let moves = game_state.get_all_moves(Color::Black);
         println!("{}", game_state.board);
         let i = moves
@@ -1261,7 +1225,7 @@ mod move_tests {
 
     #[test]
     fn simulate_en_passant() {
-        let mut game_state = Game::from(GameState::new());
+        let mut game_state = GameState::new();
         println!("{}", game_state.board);
 
         let moves = game_state.get_all_moves(Color::White);
@@ -1388,10 +1352,7 @@ mod move_tests {
 
     #[test]
     fn valid_moves() {
-        let mut game = Game::from(
-            GameState::from_str("r2qk2r/pp2ppbp/2n2np1/1B1p4/3pP3/5N2/PPP2PPP/RNBQ1RK1 w kq - 0 2")
-                .unwrap(),
-        );
+let mut game = GameState::from_str("r2qk2r/pp2ppbp/2n2np1/1B1p4/3pP3/5N2/PPP2PPP/RNBQ1RK1 w kq - 0 2").unwrap();
         println!("{}", game.board);
         let moves = game.get_all_valid_moves(Color::Black);
         println!(
@@ -1413,10 +1374,7 @@ mod move_tests {
 
     #[test]
     fn castles() {
-        let mut game = Game::from(
-            GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4")
-                .unwrap(),
-        );
+let mut game = GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4").unwrap();
         let moves = game.get_piece_moves(Pos { row: 1, column: 5 });
 
         println!("{}", game.board);
@@ -1430,12 +1388,11 @@ mod move_tests {
             .unwrap();
         game.do_move(*i, None);
         println!("{}", game.board);
-        let mut game = Game::from(
+        let mut game =
             GameState::from_str(
                 "rnbqk2r/pppp1ppp/3b3n/4p3/4P3/3P1P2/PPP1B1PP/RNBQK1NR b KQkq - 0 4",
             )
-            .unwrap(),
-        );
+            .unwrap();
         let moves = game.get_piece_moves(Pos { row: 8, column: 5 });
 
         println!("{}", game.board);
@@ -1449,12 +1406,11 @@ mod move_tests {
             .unwrap();
         game.do_move(*i, None);
         println!("{}", game.board);
-        let mut game = Game::from(
+        let mut game = 
             GameState::from_str(
                 "r3kbnr/ppp1pppp/2nq4/3p1b2/3P1B2/2NQ4/PPP1PPPP/R3KBNR w KQkq - 6 5",
             )
-            .unwrap(),
-        );
+            .unwrap();
         let moves_white = game.get_piece_moves(Pos { row: 1, column: 5 });
         let moves_black = game.get_piece_moves(Pos { row: 8, column: 5 });
         println!("{}", game.board);
@@ -1481,10 +1437,7 @@ mod move_tests {
 
     #[test]
     fn valid_castles() {
-        let mut game = Game::from(
-            GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4")
-                .unwrap(),
-        );
+let mut game = GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4").unwrap();
         let moves = game.get_all_valid_moves(Color::White);
         println!("{}", game.board);
         println!(

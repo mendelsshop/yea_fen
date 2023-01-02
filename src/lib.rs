@@ -5,7 +5,7 @@
 pub mod moves;
 use std::{error::Error, fmt, str::FromStr};
 
-use moves::Game;
+use moves::{GameResult, Move};
 macro_rules! impl_default {
     ($type:ty) => {
         impl Default for $type {
@@ -226,7 +226,7 @@ pub enum Castling {
     Both,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// The state of a game
 /// icludes the board, current player, number of moves taken, and other FEN related metadata
 pub struct GameState {
@@ -244,20 +244,26 @@ pub struct GameState {
     castling_moves: CastlingOptions,
     /// En_passant moves available, vec of row and column of En_passant(s)
     en_passant: Option<Pos>,
+
+    
+    pub(crate) moves: Vec<Move>,
+    pub(crate) result: GameResult,
 }
 
-impl From<Game> for GameState {
-    fn from(value: Game) -> Self {
-        Self {
-            board: value.board,
-            active_color: value.active_color,
-            full_move_clock: value.full_move_clock,
-            half_move_clock: value.half_move_clock,
-            castling_moves: value.castling_moves,
-            en_passant: value.en_passant,
-        }
-    }
-}
+// impl From<Game> for GameState {
+//     fn from(value: Game) -> Self {
+//         Self {
+//             board: value.board,
+//             active_color: value.active_color,
+//             full_move_clock: value.full_move_clock,
+//             half_move_clock: value.half_move_clock,
+//             castling_moves: value.castling_moves,
+//             en_passant: value.en_passant,
+
+//             moves: value.
+//         }
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 /// The castling option for both player
@@ -324,6 +330,8 @@ impl GameState {
             half_move_clock: 0,
             castling_moves: CastlingOptions::new(),
             en_passant: None,
+            moves: Vec::new(),
+            result: GameResult::InProgress,
         }
     }
 
@@ -447,6 +455,8 @@ impl FromStr for GameState {
             half_move_clock,
             castling_moves,
             en_passant,
+            moves: Vec::new(),
+            result: GameResult::InProgress,
         })
     }
 }
