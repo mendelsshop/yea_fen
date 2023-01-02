@@ -12,6 +12,8 @@ pub enum MoveType<POS, PIECE> {
     MovePromotion((POS, PIECE), POS),
     EnPassant((POS, PIECE), (POS, PIECE), POS),
     Castle((POS, (POS, PIECE)), (POS, (POS, PIECE))),
+    /// when the piece doiing the moves is capturing the enemy king
+    Check,
 }
 
 pub struct Move {
@@ -43,6 +45,7 @@ impl fmt::Display for MoveType<Pos, Colored<Piece>> {
                 "castle at {}:{} {}:{} from {} and {}",
                 new_k, king, new_c, castle, pos_k, pos_c
             ),
+            MoveType::Check => todo!(),
         }
     }
 }
@@ -319,6 +322,7 @@ impl Game {
                             | MoveType::EnPassant(..)
                             | MoveType::Castle(..) => false,
                             MoveType::Move(..) | MoveType::MovePromotion(..) => true,
+                            MoveType::Check => todo!(),
                         }));
                         let mut possible = HashSet::new();
                         match color {
@@ -339,6 +343,7 @@ impl Game {
                             MoveType::Move(..)
                             | MoveType::MovePromotion(..)
                             | MoveType::Castle(..) => false,
+                            MoveType::Check => todo!(),
                         }));
                         // check if last move was from an enemy pawn and if it was 2 spaces away
                         let new_enpessant = self.moves.last().and_then(|last_move| {
@@ -647,8 +652,20 @@ impl Game {
             self.undo_move();
             !in_check(&enemy_moves, player)
         });
+        // it might not be the best place to check for checkmate and stalemate
         if ret.is_empty() {
+            let enemy_moves = self.get_all_moves(match player {
+                Color::White => Color::Black,
+                Color::Black => Color::White,
+            });
             // check if king is in check
+            if in_check(&enemy_moves, player) {
+                // checkmate
+                self.result = GameResult::CheckMate(player);
+            } else {
+                // stalemate
+                self.result = GameResult::StaleMate;
+            }
             // if king is in check then the game is over
             // if king is not in check then the game is a draw
         }
@@ -730,6 +747,7 @@ impl Game {
                     Color::White => self.castling_moves.white = Castling::None,
                 }
             }
+            MoveType::Check => todo!(),
         };
         self.moves.push(Move {
             move_type: r#move,
@@ -817,6 +835,15 @@ impl Game {
                     self.en_passant = en_passant;
                     self.castling_moves = castling;
                 }
+                Move {
+                    move_type: MoveType::Check,
+                    // promotion: _,
+                    en_passant,
+                    castling,
+                } => {
+                    self.en_passant = en_passant;
+                    self.castling_moves = castling;
+                }
             }
         }
     }
@@ -842,6 +869,7 @@ fn in_check(enemy_moves: &HashSet<MoveType<Pos, Colored<Piece>>>, player: Color)
             | MoveType::MovePromotion(..)
             | MoveType::EnPassant(..)
             | MoveType::Castle(..) => false,
+            MoveType::Check => todo!(),
         }
         // })
     })
@@ -1203,6 +1231,8 @@ mod move_tests {
                 MoveType::MovePromotion(_, _) => false,
                 MoveType::EnPassant(_, _, _) => false,
                 MoveType::Castle(_, _) => false,
+                MoveType::Check => false,
+                
             }),
             false
         )
