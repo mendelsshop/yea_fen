@@ -1,23 +1,29 @@
-use crate::{GameState, moves};
+use crate::{moves, GameState};
 
-use super::{random, promotion};
+use super::{promotion, random};
 
 pub fn do_random_capture(game: &mut GameState) -> bool {
     let binding = game.get_all_valid_moves(game.active_color);
     if binding.is_empty() {
         return false;
     }
-    let moves = binding.iter().filter(|moe| matches!(**moe, moves::MoveType::Capture(_, _)
-    | moves::MoveType::CapturePromotion(_, _)
-    | moves::MoveType::EnPassant(_, _, _))).collect::<Vec<_>>();
-    let moves = if  moves.is_empty() {
+    let moves = binding
+        .iter()
+        .filter(|moe| {
+            matches!(
+                **moe,
+                moves::MoveType::Capture(_, _)
+                    | moves::MoveType::CapturePromotion(_, _)
+                    | moves::MoveType::EnPassant(_, _, _)
+            )
+        })
+        .collect::<Vec<_>>();
+    let moves = if moves.is_empty() {
         binding.iter().collect::<Vec<_>>()
     } else {
         moves
     };
 
-
-    
     let mut rng = match random() {
         Some(x) => x,
         None => return false,

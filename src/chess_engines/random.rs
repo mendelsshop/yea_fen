@@ -1,6 +1,6 @@
-use crate::{GameState};
+use crate::GameState;
 
-use super::{random, promotion};
+use super::{promotion, random};
 
 pub fn do_random_move(game: &mut GameState) -> bool {
     let binding = game.get_all_valid_moves(game.active_color);
@@ -22,8 +22,6 @@ pub fn do_random_move(game: &mut GameState) -> bool {
     game.do_move(*r#move, promotion);
     true
 }
-
-
 
 #[cfg(test)]
 mod tests {

@@ -1,9 +1,9 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![deny(clippy::use_self, rust_2018_idioms)]
 #![allow(clippy::must_use_candidate)]
+pub mod chess_engines;
 /// stuff that has to do with making chess moves
 pub mod moves;
-pub mod chess_engines;
 use std::{error::Error, fmt, str::FromStr};
 
 use moves::{GameResult, Move};
