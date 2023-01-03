@@ -692,8 +692,13 @@ impl GameState {
             }
             // if king is in check then the game is over
             // if king is not in check then the game is a draw
+        } 
+        // we need to check if there is only kings left on the board
+        // if there is only kings left on the board then the game is a draw
+        let count = self.board.board.iter().flat_map(|x| x.to_vec()).filter(Option::is_some).count();
+        if  count == 2 {
+            self.result = GameResult::Draw;
         }
-
         // one way to figure out if a move is legal
         // is to play a move and see if any of the oppenets moves is to capture the king
         // by iterastion over ret doing the move and then generating all oppenets moves using self.get_all_moves
@@ -783,13 +788,9 @@ impl GameState {
         });
         self.en_passant = None;
         match r#move {
-            MoveType::Move(_, _) => self.half_move_clock += 1,
-            MoveType::Capture(_, _) => self.half_move_clock = 0,
-            MoveType::CapturePromotion(_, _) => self.half_move_clock = 0,
-            MoveType::MovePromotion(_, _) => self.half_move_clock += 1,
-            MoveType::EnPassant(_, _, _) => self.half_move_clock = 0,
-            MoveType::Castle(_, _) => self.half_move_clock = 0,
-            MoveType::Check => self.half_move_clock += 1,
+            MoveType::Move(_, _)  | MoveType::MovePromotion(_, _) | MoveType::Check => self.half_move_clock += 1,
+            MoveType::Capture(_, _) | MoveType::CapturePromotion(_, _) | MoveType::EnPassant(_, _, _) | MoveType::Castle(_, _) => self.half_move_clock = 0,
+            
         }
         if self.active_color == Color::Black {
             self.full_move_clock += 1;
