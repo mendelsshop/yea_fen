@@ -4,6 +4,7 @@ use crate::{moves, Color, Colored, GameState, Piece, Pos};
 
 pub mod random;
 pub mod random_capture;
+pub mod random_maximize_capture;
 
 fn random() -> Option<usize> {
     let now = SystemTime::now();
@@ -15,8 +16,8 @@ fn random() -> Option<usize> {
 fn promotion(
     r#move: &moves::MoveType<Pos, Colored<Piece>>,
     game: &mut GameState,
-    rng: usize,
 ) -> Option<Colored<Piece>> {
+    let rng = random()?;
     match *r#move {
         moves::MoveType::Capture { .. }
         | moves::MoveType::Move { .. }
@@ -42,4 +43,9 @@ fn promotion(
             })
         }
     }
+}
+
+fn pick_random<T>(items: &Vec<T>) -> Option<&T> {
+    let rng = random()? % items.len();
+    items.get(rng)
 }

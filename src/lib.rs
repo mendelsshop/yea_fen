@@ -66,6 +66,14 @@ impl<A> From<Colored<A>> for Color {
         }
     }
 }
+
+impl From<Colored<Self>> for Piece {
+    fn from(value: Colored<Self>) -> Self {
+        match value {
+            Colored::Black(piece) | Colored::White(piece) => piece,
+        }
+    }
+}
 impl fmt::Display for Colored<Piece> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
