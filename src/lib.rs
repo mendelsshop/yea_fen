@@ -362,6 +362,10 @@ impl GameState {
     pub const fn get_gameresult(&self) -> GameResult {
         self.result
     }
+
+    pub fn get_past_moves(&self) -> &[Move] {
+        &self.moves
+    }
 }
 impl_default!(GameState);
 impl FromStr for GameState {

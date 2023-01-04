@@ -135,6 +135,12 @@ pub struct Move {
     pub(crate) full_move_clock: usize,
 }
 
+impl Move {
+    pub fn get_type(&self) -> &MoveType<Pos, Colored<Piece>> {
+        &self.move_type
+    }
+}
+
 impl fmt::Display for MoveType<Pos, Colored<Piece>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
