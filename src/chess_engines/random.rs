@@ -14,12 +14,14 @@ pub fn do_random_move(game: &mut GameState) -> bool {
         None => return false,
     };
     // generate a random number between 0 and the number of valid moves
-    rng %= moves.len() as u32;
+    rng %= moves.len();
     // make the move
-    let r#move = moves[rng as usize];
+    let r#move = moves[rng];
     // check if the move is a promotion
     let promotion = promotion(r#move, game, rng);
-    game.do_move(*r#move, promotion);
+    if !game.do_move(*r#move, promotion) {
+        return false;
+    }
     true
 }
 

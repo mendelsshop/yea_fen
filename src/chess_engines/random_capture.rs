@@ -12,9 +12,9 @@ pub fn do_random_capture(game: &mut GameState) -> bool {
         .filter(|moe| {
             matches!(
                 **moe,
-                moves::MoveType::Capture(_, _)
-                    | moves::MoveType::CapturePromotion(_, _)
-                    | moves::MoveType::EnPassant(_, _, _)
+                moves::MoveType::Capture { .. }
+                    | moves::MoveType::CapturePromotion { .. }
+                    | moves::MoveType::EnPassant { .. }
             )
         })
         .collect::<Vec<_>>();
@@ -29,19 +29,21 @@ pub fn do_random_capture(game: &mut GameState) -> bool {
         None => return false,
     };
     // generate a random number between 0 and the number of valid moves
-    rng %= moves.len() as u32;
+    rng %= moves.len();
     // make the move
-    let r#move = moves[rng as usize];
+    let r#move = moves[rng];
     // check if the move is a promotion
     let promotion = promotion(r#move, game, rng);
-    game.do_move(*r#move, promotion);
+    if !game.do_move(*r#move, promotion) {
+        return false;
+    }
     true
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::GameState;
+    use crate::{chess_engines::random::do_random_move, GameState};
 
     #[test]
     fn test_random_capture() {
@@ -49,6 +51,7 @@ mod tests {
         for _ in 0..200 {
             do_random_capture(&mut game);
             println!("{}", game.board);
+            do_random_move(&mut game);
         }
         // print the result
         println!("{:?}", game.result);

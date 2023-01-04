@@ -5,25 +5,25 @@ use crate::{moves, Color, Colored, GameState, Piece, Pos};
 pub mod random;
 pub mod random_capture;
 
-fn random() -> Option<u32> {
+fn random() -> Option<usize> {
     let now = SystemTime::now();
     let time = now.duration_since(UNIX_EPOCH).ok()?;
     let time = time.as_secs() * 1000 + u64::from(time.subsec_nanos()) / 1_000_000;
-    Some(time as u32)
+    Some(time as usize)
 }
 
 fn promotion(
     r#move: &moves::MoveType<Pos, Colored<Piece>>,
     game: &mut GameState,
-    rng: u32,
+    rng: usize,
 ) -> Option<Colored<Piece>> {
     match *r#move {
-        moves::MoveType::Capture(_, _)
-        | moves::MoveType::Move(_, _)
-        | moves::MoveType::EnPassant(_, _, _)
-        | moves::MoveType::Castle(_, _)
+        moves::MoveType::Capture { .. }
+        | moves::MoveType::Move { .. }
+        | moves::MoveType::EnPassant { .. }
+        | moves::MoveType::Castle { .. }
         | moves::MoveType::Check => None,
-        moves::MoveType::CapturePromotion(_, _) | moves::MoveType::MovePromotion(_, _) => {
+        moves::MoveType::CapturePromotion { .. } | moves::MoveType::MovePromotion { .. } => {
             Some(match game.active_color {
                 Color::White => match rng % 4 {
                     0 => Colored::White(Piece::Queen),

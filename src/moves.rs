@@ -6,35 +6,81 @@ use crate::{Board, Castling, CastlingOptions, Color, Colored, GameState, Piece, 
 /// Represents a move which can be a capture of an enemy piece or a move to an empty cell
 /// Note that the generic POS will always be of type `Pos`
 pub enum MoveType<POS, PIECE> {
-    Capture((POS, PIECE), (POS, PIECE)),
-    Move((POS, PIECE), POS),
-    CapturePromotion((POS, PIECE), (POS, PIECE)),
-    MovePromotion((POS, PIECE), POS),
-    EnPassant((POS, PIECE), (POS, PIECE), POS),
-    Castle((POS, (POS, PIECE)), (POS, (POS, PIECE))),
+    Capture {
+        origin: POS,
+        piece: PIECE,
+        new: POS,
+        captured_piece: PIECE,
+    },
+    Move {
+        origin: POS,
+        piece: PIECE,
+        new: POS,
+    },
+    CapturePromotion {
+        origin: POS,
+        piece: PIECE,
+        new: POS,
+        captured_piece: PIECE,
+    },
+    MovePromotion {
+        origin: POS,
+        piece: PIECE,
+        new: POS,
+    },
+    EnPassant {
+        origin: POS,
+        piece: PIECE,
+        new: POS,
+        captured_piece: PIECE,
+        captured_pos: POS,
+    },
+    Castle {
+        king_origin: POS,
+        king: PIECE,
+        king_new: POS,
+        rook_origin: POS,
+        rook: PIECE,
+        rook_new: POS,
+    },
     /// when the piece doiing the moves is capturing the enemy king
     Check,
+}
+
+macro_rules! return_false {
+    ($x:expr) => {
+        if !$x {
+            return false;
+        }
+    };
 }
 
 impl MoveType<Pos, Colored<Piece>> {
     pub fn from(&self, piece: (Pos, Option<Colored<Piece>>)) -> Option<Pos> {
         // check if the piece is the piece that is doing the move
         match self {
-            Self::Castle((old_r, (new_c, rook)), (old_k, (new_k, king))) => {
-                if piece == (*old_k, Some(*king)) {
-                    Some(*new_k)
-                } else if piece == (*old_r, Some(*rook)) {
-                    Some(*new_c)
+            Self::Castle {
+                king_origin,
+                king,
+                king_new,
+                rook_origin,
+                rook,
+                rook_new,
+            } => {
+                if piece == (*king_origin, Some(*king)) {
+                    Some(*king_new)
+                } else if piece == (*rook_origin, Some(*rook)) {
+                    Some(*rook_new)
                 } else {
                     None
                 }
             }
-            Self::Capture((pos, _), _)
-            | Self::Move((pos, _), _)
-            | Self::CapturePromotion((pos, _), _)
-            | Self::MovePromotion((pos, _), _)
-            | Self::EnPassant((pos, _), _, _) => {
-                if piece.0 == *pos {
+            Self::Capture { origin, .. }
+            | Self::Move { origin, .. }
+            | Self::CapturePromotion { origin, .. }
+            | Self::MovePromotion { origin, .. }
+            | Self::EnPassant { origin, .. } => {
+                if piece.0 == *origin {
                     Some(piece.0)
                 } else {
                     None
@@ -46,34 +92,43 @@ impl MoveType<Pos, Colored<Piece>> {
     pub fn to(&self, piece: Option<Colored<Piece>>) -> Pos {
         // if its a castle, then check if its a king or a rook and return the new position of the king or the rook
         match self {
-            Self::Castle((_, (new_c, rook)), (_, (new_k, king))) => {
+            Self::Castle {
+                king,
+                king_new,
+                rook,
+                rook_new,
+                ..
+            } => {
                 if piece == Some(*king) {
-                    *new_k
+                    *king_new
                 } else if piece == Some(*rook) {
-                    *new_c
-                } else if piece.is_none() {
-                    *new_k
+                    *rook_new
                 } else {
-                    unreachable!()
+                    *king_new
                 }
             }
-            Self::Capture((_, _), (pos, _))
-            | Self::Move((_, _), pos)
-            | Self::CapturePromotion((_, _), (pos, _))
-            | Self::MovePromotion((_, _), pos)
-            | Self::EnPassant((_, _), (pos, _), _) => *pos,
+            Self::Capture { new, .. }
+            | Self::Move { new, .. }
+            | Self::CapturePromotion { new, .. }
+            | Self::MovePromotion { new, .. }
+            | Self::EnPassant { new, .. } => *new,
             Self::Check => unreachable!(),
         }
     }
 
     pub const fn is_special(&self) -> bool {
-        matches!(self, Self::Castle(_, _) | Self::EnPassant(_, _, _))
+        matches!(
+            self,
+            Self::Castle { .. }
+                | Self::EnPassant { .. }
+                | Self::MovePromotion { .. }
+                | Self::CapturePromotion { .. }
+        )
     }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Move {
     pub(crate) move_type: MoveType<Pos, Colored<Piece>>,
-    // pub(crate) promotion: Option<Colored<Piece>>,
     pub(crate) en_passant: Option<Pos>,
     pub(crate) castling: CastlingOptions,
     pub(crate) half_move_clock: usize,
@@ -83,21 +138,45 @@ pub struct Move {
 impl fmt::Display for MoveType<Pos, Colored<Piece>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Capture((pos_o, piece_m), (pos_n, piece))
-            | Self::CapturePromotion((pos_o, piece_m), (pos_n, piece)) => write!(
-                f,
-                "Capture {} at {} from {} at {}",
-                piece, pos_o, piece_m, pos_n
-            ),
-            Self::Move((pos_o, piece_m), pos_n) | Self::MovePromotion((pos_o, piece_m), pos_n) => {
-                write!(f, "Move to {} from {} at {}", pos_n, piece_m, pos_o)
+            Self::CapturePromotion {
+                origin,
+                piece,
+                new,
+                captured_piece,
             }
-            Self::EnPassant((pos_o, piece_m), (pos_n, piece), pos_e) => write!(
+            | Self::Capture {
+                origin,
+                piece,
+                new,
+                captured_piece,
+            } => write!(
+                f,
+                "Capture of {} at {} from {} at {}",
+                captured_piece, new, piece, origin
+            ),
+
+            Self::Move { origin, new, piece } | Self::MovePromotion { origin, piece, new } => {
+                write!(f, "Move from {} with {} to {}", origin, piece, new)
+            }
+            Self::EnPassant {
+                origin: pos_o,
+                piece: piece_m,
+                new: pos_n,
+                captured_piece: piece,
+                captured_pos: pos_e,
+            } => write!(
                 f,
                 "En_passant {} at {} from {} at {} to {}",
                 piece, pos_o, piece_m, pos_n, pos_e
             ),
-            Self::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))) => write!(
+            Self::Castle {
+                king_origin: pos_k,
+                king,
+                king_new: new_k,
+                rook_origin: pos_c,
+                rook: castle,
+                rook_new: new_c,
+            } => write!(
                 f,
                 "castle at {}:{} {}:{} from {} and {}",
                 new_k, king, new_c, castle, pos_k, pos_c
@@ -108,38 +187,31 @@ impl fmt::Display for MoveType<Pos, Colored<Piece>> {
 }
 
 macro_rules! check_insert {
-    ($itt:ident, $pos:ident, $piece_color:ident, $ret:ident, $pos_o:expr) => {
-        match $itt.board.get_cell($pos) {
+    ($itt:ident, $new:ident, $piece_color:ident, $ret:ident, $origin:expr) => {
+        match $itt.board.get_cell($new) {
             None | Some(None) => {
-                match $pos_o {
+                match $origin {
                     // if the piece is a pawn and its at the end of the board, then it can be promoted
                     // for a white pawn, the row is 8, for a black pawn, the row is 1
-                    (Pos { row: 7, .. }, Colored::White(Piece::Pawn)) => {
-                        $ret.insert(MoveType::MovePromotion($pos_o, $pos));
-                    }
-                    (Pos { row: 2, .. }, Colored::Black(Piece::Pawn)) => {
-                        $ret.insert(MoveType::MovePromotion($pos_o, $pos));
+                    (Pos { row: 7, .. }, Colored::White(Piece::Pawn)) | (Pos { row: 2, .. }, Colored::Black(Piece::Pawn)) => {
+                        $ret.insert(MoveType::MovePromotion{new: $new , origin: $origin.0, piece: $origin.1});
                     }
                     _ => {
-                        $ret.insert(MoveType::Move($pos_o, $pos));
+                        $ret.insert(MoveType::Move{new: $new , origin: $origin.0, piece: $origin.1});
                     }
                 }
-                // $ret.insert(MoveType::Move($pos_o, $pos));
+
             }
             Some(Some(piece_c)) => {
                 if !(Color::from(*piece_c) == $piece_color) {
-                    // $ret.insert(MoveType::Capture($pos_o, ($pos, *piece_c)));
-                    match $pos_o {
+                    match $origin {
                         // if the piece is a pawn and its at the end of the board, then it can be promoted
                         // for a white pawn, the row is 8, for a black pawn, the row is 1
-                        (Pos { row: 7, .. }, Colored::White(Piece::Pawn)) => {
-                            $ret.insert(MoveType::CapturePromotion($pos_o, ($pos, *piece_c)));
-                        }
-                        (Pos { row: 2, .. }, Colored::Black(Piece::Pawn)) => {
-                            $ret.insert(MoveType::CapturePromotion($pos_o, ($pos, *piece_c)));
+                        (Pos { row: 7, .. }, Colored::White(Piece::Pawn)) | (Pos { row: 2, .. }, Colored::Black(Piece::Pawn)) => {
+                            $ret.insert(MoveType::CapturePromotion{new: $new, origin: $origin.0, piece: $origin.1, captured_piece: *piece_c});
                         }
                         _ => {
-                            $ret.insert(MoveType::Capture($pos_o, ($pos, *piece_c)));
+                            $ret.insert(MoveType::Capture{new: $new, origin: $origin.0, piece: $origin.1, captured_piece: *piece_c});
                         }
                     }
                 }
@@ -190,7 +262,6 @@ impl GameState {
                 (Colored::White(Piece::King), Colored::White(Piece::Rook)),
             ),
         };
-        // let potential = HashSet::new();
         for i in to_range(2) {
             if i == 0 {
                 continue;
@@ -200,10 +271,14 @@ impl GameState {
                     Some(Some(_)) => break,
                     _ => {
                         if i == 2 {
-                            ret.insert(MoveType::Castle(
-                                (king_pos, (new_k, king)),
-                                (rook_pos, (new_r, rook)),
-                            ));
+                            ret.insert(MoveType::Castle {
+                                king,
+                                rook,
+                                king_origin: king_pos,
+                                king_new: new_k,
+                                rook_origin: rook_pos,
+                                rook_new: new_r,
+                            });
                         }
                     }
                 }
@@ -232,10 +307,14 @@ impl GameState {
                     break;
                 }
                 if i == -3 {
-                    ret.insert(MoveType::Castle(
-                        (king_pos, (new_k, king)),
-                        (rook_pos, (new_r, rook)),
-                    ));
+                    ret.insert(MoveType::Castle {
+                        king,
+                        rook,
+                        king_origin: king_pos,
+                        king_new: new_k,
+                        rook_origin: rook_pos,
+                        rook_new: new_r,
+                    });
                 }
             }
         }
@@ -291,14 +370,20 @@ impl GameState {
                             if let Some(pos_n) = pos.add_row_and_column(x, 3 - x.abs()) {
                                 match self.board.get_cell(pos_n) {
                                     None | Some(None) => {
-                                        ret.insert(MoveType::Move((pos, *piece), pos_n));
+                                        ret.insert(MoveType::Move {
+                                            origin: pos,
+                                            piece: *piece,
+                                            new: pos_n,
+                                        });
                                     }
                                     Some(Some(piece_c)) => {
                                         if !(Color::from(*piece_c) == color) {
-                                            ret.insert(MoveType::Capture(
-                                                (pos, *piece),
-                                                (pos_n, *piece_c),
-                                            ));
+                                            ret.insert(MoveType::Capture {
+                                                origin: pos,
+                                                piece: *piece,
+                                                new: pos_n,
+                                                captured_piece: *piece_c,
+                                            });
                                         }
                                     }
                                 }
@@ -306,14 +391,20 @@ impl GameState {
                             if let Some(pos_n) = pos.add_row_and_column(x, -3 + x.abs()) {
                                 match self.board.get_cell(pos_n) {
                                     None | Some(None) => {
-                                        ret.insert(MoveType::Move((pos, *piece), pos_n));
+                                        ret.insert(MoveType::Move {
+                                            origin: pos,
+                                            piece: *piece,
+                                            new: pos_n,
+                                        });
                                     }
                                     Some(Some(piece_c)) => {
                                         if !(Color::from(*piece_c) == color) {
-                                            ret.insert(MoveType::Capture(
-                                                (pos, *piece),
-                                                (pos_n, *piece_c),
-                                            ));
+                                            ret.insert(MoveType::Capture {
+                                                origin: pos,
+                                                piece: *piece,
+                                                new: pos_n,
+                                                captured_piece: *piece_c,
+                                            });
                                         }
                                     }
                                 }
@@ -341,11 +432,11 @@ impl GameState {
                             }
                         }
                         ret.extend(possible.iter().filter(|thing| match **thing {
-                            MoveType::Capture(..)
-                            | MoveType::CapturePromotion(..)
-                            | MoveType::EnPassant(..)
-                            | MoveType::Castle(..) => false,
-                            MoveType::Move(..) | MoveType::MovePromotion(..) => true,
+                            MoveType::Capture { .. }
+                            | MoveType::CapturePromotion { .. }
+                            | MoveType::EnPassant { .. }
+                            | MoveType::Castle { .. } => false,
+                            MoveType::Move { .. } | MoveType::MovePromotion { .. } => true,
                             MoveType::Check => todo!(),
                         }));
                         let mut possible = HashSet::new();
@@ -361,12 +452,12 @@ impl GameState {
                         }
                         // validate the the possible values are captures and not just plain moves
                         ret.extend(possible.iter().filter(|thing| match **thing {
-                            MoveType::Capture(..)
-                            | MoveType::CapturePromotion(..)
-                            | MoveType::EnPassant(..) => true,
-                            MoveType::Move(..)
-                            | MoveType::MovePromotion(..)
-                            | MoveType::Castle(..) => false,
+                            MoveType::Capture { .. }
+                            | MoveType::CapturePromotion { .. }
+                            | MoveType::EnPassant { .. } => true,
+                            MoveType::Move { .. }
+                            | MoveType::MovePromotion { .. }
+                            | MoveType::Castle { .. } => false,
                             MoveType::Check => todo!(),
                         }));
                         // check if last move was from an enemy pawn and if it was 2 spaces away
@@ -381,11 +472,16 @@ impl GameState {
                                 return None;
                             }
                             // check if the last move was a pawn move
-                            if let MoveType::Move((origoin, piece_n), new) = last_move.move_type {
+                            if let MoveType::Move {
+                                origin,
+                                piece: piece_n,
+                                new,
+                            } = last_move.move_type
+                            {
                                 if (color == Color::from(piece_n)
                                     && (piece_n == Colored::White(Piece::Pawn)
                                         || piece_n == Colored::Black(Piece::Pawn)))
-                                    || (origoin.row.max(new.row) - origoin.row.min(new.row) != 2)
+                                    || (origin.row.max(new.row) - origin.row.min(new.row) != 2)
                                 {
                                     return None;
                                 }
@@ -407,11 +503,13 @@ impl GameState {
                                     Color::White => Pos::new(pos.row + 1, new_column),
                                     Color::Black => Pos::new(pos.row - 1, new_column),
                                 };
-                                ret.insert(MoveType::EnPassant(
-                                    (pos, *piece),
-                                    (new, piece_n),
-                                    new_pos,
-                                ));
+                                ret.insert(MoveType::EnPassant {
+                                    origin: pos,
+                                    piece: *piece,
+                                    captured_pos: new,
+                                    captured_piece: piece_n,
+                                    new: new_pos,
+                                });
                                 return Some(new_pos);
                             }
                             None
@@ -576,7 +674,14 @@ impl GameState {
                 Color::White => Color::Black,
                 Color::Black => Color::White,
             });
-            if let MoveType::Castle((pos_k, (_, king)), (pos_r, _)) = pos {
+            // if let MoveType::Castle((pos_k, (_, king)), (pos_r, _)) = pos {
+            if let MoveType::Castle {
+                king,
+                king_origin: pos_k,
+                rook_origin: pos_r,
+                ..
+            } = pos
+            {
                 // check if the king is in check
                 // then check if the king pos (+ if kingside, - if queenside) 1 is in check
                 // then check if the king pos (+ if kingside, - if queenside) 2 is in check
@@ -590,13 +695,14 @@ impl GameState {
                     } => {
                         checks.push(in_check(&enemy_moves, player));
                         // move the king 1 to the left
-                        let move_ = MoveType::Move(
-                            (*pos_k, *king),
-                            Pos {
+                        let move_ = MoveType::Move {
+                            origin: *pos_k,
+                            piece: *king,
+                            new: Pos {
                                 row: pos_k.row,
                                 column: pos_k.column - 1,
                             },
-                        );
+                        };
                         self.do_move(move_, None);
                         let enemy_moves = self.get_all_moves(match player {
                             Color::White => Color::Black,
@@ -604,20 +710,20 @@ impl GameState {
                         });
                         checks.push(in_check(&enemy_moves, player));
                         // move the king 1 to the left
-                        let move_ = MoveType::Move(
-                            (*pos_k, *king),
-                            Pos {
+                        let move_ = MoveType::Move {
+                            origin: *pos_k,
+                            piece: *king,
+                            new: Pos {
                                 row: pos_k.row,
                                 column: pos_k.column - 2,
                             },
-                        );
+                        };
                         self.do_move(move_, None);
                         let enemy_moves = self.get_all_moves(match player {
                             Color::White => Color::Black,
                             Color::Black => Color::White,
                         });
                         checks.push(in_check(&enemy_moves, player));
-                        self.do_move(*pos, None);
                         self.undo_move();
                         self.undo_move();
                         return !checks.contains(&true);
@@ -629,26 +735,28 @@ impl GameState {
                     } => {
                         checks.push(in_check(&enemy_moves, player));
                         // move the king 1 to the right
-                        let move_ = MoveType::Move(
-                            (*pos_k, *king),
-                            Pos {
+                        let move_ = MoveType::Move {
+                            origin: *pos_k,
+                            piece: *king,
+                            new: Pos {
                                 row: pos_k.row,
                                 column: pos_k.column + 1,
                             },
-                        );
+                        };
                         self.do_move(move_, None);
                         let enemy_moves = self.get_all_moves(match player {
                             Color::White => Color::Black,
                             Color::Black => Color::White,
                         });
                         checks.push(in_check(&enemy_moves, player));
-                        let move_ = MoveType::Move(
-                            (*pos_k, *king),
-                            Pos {
+                        let move_ = MoveType::Move {
+                            origin: *pos_k,
+                            piece: *king,
+                            new: Pos {
                                 row: pos_k.row,
                                 column: pos_k.column + 2,
                             },
-                        );
+                        };
                         self.do_move(move_, None);
                         let enemy_moves = self.get_all_moves(match player {
                             Color::White => Color::Black,
@@ -666,7 +774,7 @@ impl GameState {
             match player {
                 Color::White => self.do_move(*pos, Some(Colored::White(Piece::Queen))),
                 Color::Black => self.do_move(*pos, Some(Colored::Black(Piece::Queen))),
-            }
+            };
 
             let openent = match player {
                 Color::White => Color::Black,
@@ -716,23 +824,33 @@ impl GameState {
         &mut self,
         r#move: MoveType<Pos, Colored<Piece>>,
         promotion: Option<Colored<Piece>>,
-    ) {
+    ) -> bool {
         let castling_bak = self.castling_moves;
         match r#move {
-            MoveType::Move((pos, piece), pos_c) => {
-                self.board.insert(None, pos);
-                self.board.insert(Some(piece), pos_c);
-                self.set_castling(pos, piece);
+            MoveType::Move { origin, piece, new } => {
+                return_false!(self.board.insert(None, origin));
+                return_false!(self.board.insert(Some(piece), new));
+                self.set_castling(origin, piece);
             }
-            MoveType::Capture((pos, piece), (pos_c, piece_c)) => {
-                self.board.insert(None, pos);
-                self.board.insert(Some(piece), pos_c);
+            MoveType::Capture {
+                origin,
+                piece,
+                new,
+                captured_piece,
+            } => {
+                return_false!(self.board.insert(None, origin));
+                return_false!(self.board.insert(Some(piece), new));
                 // here we have to account for both the piece that was captured and the piece that did the capturing
 
-                self.set_castling(pos, piece);
-                self.set_castling(pos_c, piece_c);
+                self.set_castling(origin, piece);
+                self.set_castling(new, captured_piece);
             }
-            MoveType::CapturePromotion((pos, _), (pos_c, piece_c)) => {
+            MoveType::CapturePromotion {
+                origin,
+                new,
+                captured_piece,
+                ..
+            } => {
                 if let Some(promotion) = promotion {
                     match promotion {
                         Colored::White(piece) | Colored::Black(piece) => {
@@ -741,16 +859,16 @@ impl GameState {
                                 && piece != Piece::Bishop
                                 && piece != Piece::Knight
                             {
-                                return;
+                                return false;
                             }
                         }
                     }
-                    self.board.insert(None, pos);
-                    self.board.insert(Some(promotion), pos_c);
-                    self.set_castling(pos_c, piece_c);
+                    self.board.insert(None, origin);
+                    self.board.insert(Some(promotion), new);
+                    self.set_castling(new, captured_piece);
                 }
             }
-            MoveType::MovePromotion((pos, _), pos_c) => {
+            MoveType::MovePromotion { origin, new, .. } => {
                 if let Some(promotion) = promotion {
                     match promotion {
                         Colored::White(piece) | Colored::Black(piece) => {
@@ -759,24 +877,37 @@ impl GameState {
                                 && piece != Piece::Bishop
                                 && piece != Piece::Knight
                             {
-                                return;
+                                return false;
                             }
                         }
                     }
-                    self.board.insert(None, pos);
-                    self.board.insert(Some(promotion), pos_c);
+                    return_false!(self.board.insert(None, origin));
+                    return_false!(self.board.insert(Some(promotion), new));
                 }
             }
-            MoveType::EnPassant((pos_o, piece), (pos_c, _), pos_n) => {
-                self.board.insert(None, pos_o);
-                self.board.insert(None, pos_c);
-                self.board.insert(Some(piece), pos_n);
+            MoveType::EnPassant {
+                origin,
+                new,
+                piece,
+                captured_pos,
+                ..
+            } => {
+                return_false!(self.board.insert(None, origin));
+                return_false!(self.board.insert(None, captured_pos));
+                return_false!(self.board.insert(Some(piece), new));
             }
-            MoveType::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))) => {
-                self.board.insert(None, pos_c);
-                self.board.insert(None, pos_k);
-                self.board.insert(Some(king), new_k);
-                self.board.insert(Some(castle), new_c);
+            MoveType::Castle {
+                king_origin,
+                king,
+                king_new,
+                rook_origin,
+                rook,
+                rook_new,
+            } => {
+                return_false!(self.board.insert(None, rook_origin));
+                return_false!(self.board.insert(None, king_origin));
+                return_false!(self.board.insert(Some(king), king_new));
+                return_false!(self.board.insert(Some(rook), rook_new));
                 match Color::from(king) {
                     Color::Black => self.castling_moves.black = Castling::None,
                     Color::White => self.castling_moves.white = Castling::None,
@@ -786,7 +917,6 @@ impl GameState {
         };
         self.moves.push(Move {
             move_type: r#move,
-            //  promotion,
             en_passant: self.en_passant,
             castling: castling_bak,
             full_move_clock: self.full_move_clock,
@@ -794,13 +924,13 @@ impl GameState {
         });
         self.en_passant = None;
         match r#move {
-            MoveType::Move(_, _) | MoveType::MovePromotion(_, _) | MoveType::Check => {
-                self.half_move_clock += 1
+            MoveType::Move { .. } | MoveType::MovePromotion { .. } | MoveType::Check => {
+                self.half_move_clock += 1;
             }
-            MoveType::Capture(_, _)
-            | MoveType::CapturePromotion(_, _)
-            | MoveType::EnPassant(_, _, _)
-            | MoveType::Castle(_, _) => self.half_move_clock = 0,
+            MoveType::Capture { .. }
+            | MoveType::CapturePromotion { .. }
+            | MoveType::EnPassant { .. }
+            | MoveType::Castle { .. } => self.half_move_clock = 0,
         }
         if self.active_color == Color::Black {
             self.full_move_clock += 1;
@@ -809,6 +939,7 @@ impl GameState {
             Color::White => Color::Black,
             Color::Black => Color::White,
         };
+        true
     }
 
     fn set_castling(&mut self, pos: Pos, piece: Colored<Piece>) {
@@ -835,32 +966,53 @@ impl GameState {
         }
     }
 
-    pub fn undo_move(&mut self) {
+    pub fn undo_move(&mut self) -> bool {
         if let Some(r#move) = self.moves.pop() {
             match r#move.move_type {
-                MoveType::Capture((pos, piece), (pos_c, piece_c))
-                | MoveType::CapturePromotion((pos, piece), (pos_c, piece_c)) => {
-                    self.board.insert(Some(piece), pos);
-                    self.board.insert(Some(piece_c), pos_c);
+                MoveType::Capture {
+                    origin,
+                    piece,
+                    captured_piece,
+                    new,
                 }
-
-                MoveType::Move((pos, piece), blank_pos)
-                | MoveType::MovePromotion((pos, piece), blank_pos) => {
-                    self.board.insert(Some(piece), pos);
-                    self.board.insert(None, blank_pos);
+                | MoveType::CapturePromotion {
+                    origin,
+                    piece,
+                    new,
+                    captured_piece,
+                } => {
+                    return_false!(self.board.insert(Some(piece), origin));
+                    return_false!(self.board.insert(Some(captured_piece), new));
                 }
-                MoveType::EnPassant((pos_o, piece), (pos_c, piece_c), pos_n) => {
-                    self.board.insert(Some(piece), pos_o);
-                    self.board.insert(Some(piece_c), pos_c);
-                    self.board.insert(None, pos_n);
+                MoveType::Move { origin, piece, new }
+                | MoveType::MovePromotion { origin, piece, new } => {
+                    return_false!(self.board.insert(Some(piece), origin));
+                    return_false!(self.board.insert(None, new));
                 }
-                MoveType::Castle((pos_c, (new_c, castle)), (pos_k, (new_k, king))) => {
-                    self.board.insert(Some(castle), pos_c);
-                    self.board.insert(Some(king), pos_k);
-                    self.board.insert(None, new_k);
-                    self.board.insert(None, new_c);
+                MoveType::EnPassant {
+                    origin,
+                    new,
+                    piece,
+                    captured_piece,
+                    captured_pos,
+                } => {
+                    return_false!(self.board.insert(Some(piece), origin));
+                    return_false!(self.board.insert(Some(captured_piece), captured_pos));
+                    return_false!(self.board.insert(None, new));
                 }
-
+                MoveType::Castle {
+                    king_origin,
+                    king,
+                    king_new,
+                    rook_origin,
+                    rook,
+                    rook_new,
+                } => {
+                    return_false!(self.board.insert(Some(rook), rook_origin));
+                    return_false!(self.board.insert(Some(king), king_origin));
+                    return_false!(self.board.insert(None, king_new));
+                    return_false!(self.board.insert(None, rook_new));
+                }
                 MoveType::Check => {}
             }
             self.en_passant = r#move.en_passant;
@@ -871,40 +1023,41 @@ impl GameState {
                 Color::White => Color::Black,
                 Color::Black => Color::White,
             };
+            true
+        } else {
+            false
         }
     }
 }
 
 fn in_check(enemy_moves: &HashSet<MoveType<Pos, Colored<Piece>>>, player: Color) -> bool {
-    enemy_moves.iter().any(|move_type| {
-        // moves.iter().any(|move_type| {
-        match move_type {
-            MoveType::Capture((_, _), (_, piece))
-            | MoveType::CapturePromotion((_, _), (_, piece)) => {
-                if Color::from(*piece) == player {
-                    let piece = match piece {
-                        Colored::White(piece) | Colored::Black(piece) => piece,
-                    };
-                    piece == &Piece::King
-                    // piece == &Colored::White(Piece::King) || piece == &Colored::Black(Piece::King)
-                } else {
-                    false
-                }
+    enemy_moves.iter().any(|move_type| match move_type {
+        MoveType::Capture { captured_piece, .. }
+        | MoveType::CapturePromotion { captured_piece, .. } => {
+            if Color::from(*captured_piece) == player {
+                let piece = match captured_piece {
+                    Colored::White(piece) | Colored::Black(piece) => piece,
+                };
+                piece == &Piece::King
+            } else {
+                false
             }
-            MoveType::Move(..)
-            | MoveType::MovePromotion(..)
-            | MoveType::EnPassant(..)
-            | MoveType::Castle(..) => false,
-            MoveType::Check => todo!(),
         }
-        // })
+        MoveType::Move { .. }
+        | MoveType::MovePromotion { .. }
+        | MoveType::EnPassant { .. }
+        | MoveType::Castle { .. } => false,
+        MoveType::Check => todo!(),
     })
 }
 
 impl Board {
-    fn insert(&mut self, piece: Option<Colored<Piece>>, location: Pos) {
-        // TODO: use checked indexing
-        self.board[7 - (location.row as usize - 1)][location.column as usize - 1] = piece;
+    fn insert(&mut self, piece: Option<Colored<Piece>>, location: Pos) -> bool {
+        self.board
+            .get_mut(7 - (location.row as usize - 1))
+            .and_then(|row| row.get_mut(location.column as usize - 1))
+            .map(|square| *square = piece)
+            .is_some()
     }
 }
 
@@ -1142,42 +1295,26 @@ mod move_tests {
     #[test]
     fn test_semi_legal_moves() {
         let mut game_state = GameState::new();
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("e1").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("e1").unwrap());
         assert_eq!(pos_moves.len(), 0);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("e2").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("e2").unwrap());
         assert_eq!(pos_moves.len(), 2);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("b1").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("b1").unwrap());
         assert_eq!(pos_moves.len(), 2);
 
         let mut game_state =
             GameState::from_str("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
                 .unwrap();
         println!("{}", game_state.board);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("e1").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("e1").unwrap());
         assert_eq!(pos_moves.len(), 1);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("f1").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("f1").unwrap());
         assert_eq!(pos_moves.len(), 5);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("d1").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("d1").unwrap());
         assert_eq!(pos_moves.len(), 1);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("h1").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("h1").unwrap());
         assert_eq!(pos_moves.len(), 1);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("e4").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("e4").unwrap());
         assert_eq!(pos_moves.len(), 1);
 
         // test pawn capture
@@ -1185,9 +1322,7 @@ mod move_tests {
             GameState::from_str("rnbqkbnr/ppp1pppp/8/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
                 .unwrap();
         println!("{}", game_state.board);
-        let pos_moves = game_state
-            // .board
-            .get_piece_moves(Pos::from_str("e4").unwrap());
+        let pos_moves = game_state.get_piece_moves(Pos::from_str("e4").unwrap());
         assert_eq!(pos_moves.len(), 2);
     }
 
@@ -1197,7 +1332,6 @@ mod move_tests {
         println!(
             "{}",
             game_state
-                // .board
                 .get_all_moves(Color::White)
                 .iter()
                 .map(|moves| { format!("\n{} ", moves) })
@@ -1209,9 +1343,7 @@ mod move_tests {
     fn board_insert() {
         let mut game_state = GameState::new();
         println!("{}", game_state.board);
-        let moves = game_state
-            // .board
-            .get_all_moves(Color::White);
+        let moves = game_state.get_all_moves(Color::White);
 
         let i = moves.iter().next().unwrap();
 
@@ -1221,9 +1353,7 @@ mod move_tests {
             GameState::from_str("2kr3r/ppp2p1p/1b4nQ/1P3b2/P7/2q2NBB/3N1P1P/R3K2R w KQ - 0 23")
                 .unwrap();
         let now = Instant::now();
-        let valid_moves = game_state
-            // .board
-            .get_all_valid_moves(Color::White);
+        let valid_moves = game_state.get_all_valid_moves(Color::Black);
 
         println!("{}ms", now.elapsed().as_millis());
         println!("{}", game_state.board);
@@ -1236,26 +1366,22 @@ mod move_tests {
                 .collect::<String>()
         );
 
-        // check that there are no moves for white horse at d2
+        // check that there are no moves for black horse at c6
         assert_eq!(
             valid_moves.iter().any(|move_| match *move_ {
-                MoveType::Capture((pos, piece), _) => match piece {
-                    Colored::White(Piece::Knight) => pos == Pos::new(4, 2),
-                    _ => false,
-                },
-                MoveType::Move((pos, piece), _) => match piece {
-                    Colored::White(Piece::Knight) => pos == Pos::new(4, 2),
-                    _ => false,
-                },
-                MoveType::CapturePromotion(_, _) => false,
-                MoveType::MovePromotion(_, _) => false,
-                MoveType::EnPassant(_, _, _) => false,
-                MoveType::Castle(_, _) => false,
+                MoveType::Capture { origin, piece, .. } | MoveType::Move { origin, piece, .. } =>
+                    match piece {
+                        Colored::Black(Piece::Knight) => origin == Pos::new(6, 3),
+                        _ => false,
+                    },
+                MoveType::CapturePromotion { .. } => false,
+                MoveType::MovePromotion { .. } => false,
+                MoveType::EnPassant { .. } => false,
+                MoveType::Castle { .. } => false,
                 MoveType::Check => false,
             }),
             false
         )
-        //     valid_moves.f
     }
 
     #[test]
@@ -1266,7 +1392,7 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|move_| match *move_ {
-                MoveType::MovePromotion(_, _) => true,
+                MoveType::MovePromotion { .. } => true,
                 _ => false,
             })
             .unwrap();
@@ -1283,15 +1409,13 @@ mod move_tests {
     fn simulate_en_passant() {
         let mut game_state = GameState::new();
         println!("{}", game_state.board);
-
         let moves = game_state.get_all_moves(Color::White);
         // move pawn at e2 to e4
-
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Move((pos_o, _), pos_n) => {
-                    (pos_n == Pos::new(4, 5)) && (pos_o == Pos::new(2, 5))
+                MoveType::Move { origin, new, .. } => {
+                    (new == Pos::new(4, 5)) && (origin == Pos::new(2, 5))
                 }
                 _ => false,
             })
@@ -1306,8 +1430,8 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Move((pos_o, _), pos_n) => {
-                    (pos_n == Pos::new(5, 4)) && (pos_o == Pos::new(7, 4))
+                MoveType::Move { origin, new, .. } => {
+                    (new == Pos::new(5, 4)) && (origin == Pos::new(7, 4))
                 }
                 _ => false,
             })
@@ -1320,7 +1444,8 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Move(_, pos) => pos == Pos::new(5, 5),
+                // MoveType::Move(_, pos) => pos == Pos::new(5, 5),
+                MoveType::Move { new, .. } => new == Pos::new(5, 5),
 
                 _ => false,
             })
@@ -1331,19 +1456,11 @@ mod move_tests {
         // move pawn at f7 to f5
         let moves = game_state.get_all_moves(Color::Black);
 
-        // let i = moves
-        //     .iter()
-        //     .find(|movetype| match **movetype {
-        //         MoveType::Move(_, pos) => pos == Pos::new(5, 6),
-        //         _ => false,
-        //     })
-        //     .unwrap();
-
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Move((pos_o, _), pos_n) => {
-                    (pos_n == Pos::new(5, 6)) && (pos_o == Pos::new(7, 6))
+                MoveType::Move { origin, new, .. } => {
+                    (new == Pos::new(5, 6)) && (origin == Pos::new(7, 6))
                 }
                 _ => false,
             })
@@ -1358,7 +1475,7 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::EnPassant(_, _, pos) => pos == Pos::new(6, 6),
+                MoveType::EnPassant { new, .. } => new == Pos::new(6, 6),
                 _ => false,
             })
             .unwrap();
@@ -1371,7 +1488,7 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Move(_, pos) => pos == Pos::new(4, 4),
+                MoveType::Move { new, .. } => new == Pos::new(4, 4),
                 _ => false,
             })
             .unwrap();
@@ -1384,8 +1501,8 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Move((pos_o, _), pos_n) => {
-                    (pos_n == Pos::new(4, 3)) && (pos_o == Pos::new(2, 3))
+                MoveType::Move { origin, new, .. } => {
+                    (new == Pos::new(4, 3)) && (origin == Pos::new(2, 3))
                 }
                 _ => false,
             })
@@ -1398,7 +1515,7 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::EnPassant(_, _, pos) => pos == Pos::new(3, 3),
+                MoveType::EnPassant { new, .. } => new == Pos::new(3, 3),
                 _ => false,
             })
             .unwrap();
@@ -1423,7 +1540,7 @@ mod move_tests {
         // check that there are no moves for the knight at c6
         assert_eq!(
             moves.iter().any(|movetype| match *movetype {
-                MoveType::Move((pos_o, _), _) => pos_o == Pos::new(6, 3),
+                MoveType::Move { origin, .. } => origin == Pos::new(6, 3),
                 _ => false,
             }),
             false
@@ -1442,7 +1559,7 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Castle(..) => true,
+                MoveType::Castle { .. } => true,
                 _ => false,
             })
             .unwrap();
@@ -1459,7 +1576,7 @@ mod move_tests {
         let i = moves
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Castle(..) => true,
+                MoveType::Castle { .. } => true,
                 _ => false,
             })
             .unwrap();
@@ -1476,7 +1593,7 @@ mod move_tests {
         let i = moves_white
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Castle(..) => true,
+                MoveType::Castle { .. } => true,
                 _ => false,
             })
             .unwrap();
@@ -1485,7 +1602,7 @@ mod move_tests {
         let i = moves_black
             .iter()
             .find(|movetype| match **movetype {
-                MoveType::Castle(..) => true,
+                MoveType::Castle { .. } => true,
                 _ => false,
             })
             .unwrap();
@@ -1510,7 +1627,7 @@ mod move_tests {
         // check that there are no moves for the knight at c6
         assert_eq!(
             moves.iter().any(|movetype| match *movetype {
-                MoveType::Castle(..) => true,
+                MoveType::Castle { .. } => true,
                 _ => false,
             }),
             true
