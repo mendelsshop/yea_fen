@@ -1,7 +1,11 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use crate::{chess_engines::pick_random, moves::{MoveType, GameResult}, Color, Colored, GameState, Piece, Pos};
+use crate::{
+    chess_engines::pick_random,
+    moves::{GameResult, MoveType},
+    Color, Colored, GameState, Piece, Pos,
+};
 
 use super::get_capture_piece_value;
 
@@ -22,7 +26,6 @@ pub fn minimax(
 }
 
 pub fn do_minimax(game: &mut GameState, depth: usize) -> bool {
-
     minimax(game, depth).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
@@ -40,8 +43,6 @@ fn max(
     let moves = game.get_all_valid_moves(game.active_color);
     if game.result == GameResult::CheckMate(game.active_color) {
         println!("check mate found on {:?}", game.active_color);
-
-        
     }
     // for r#move in moves {
     //     max(game, depth-1, color, alpha, beta );
@@ -55,7 +56,6 @@ fn max(
         };
         game.do_move(*r#move, Some(prom));
         if let Some(score) = min(game, depth - 1, alpha, beta) {
-            
             if score.0 >= beta {
                 game.undo_move();
                 return Some((beta, *r#move));
@@ -104,7 +104,6 @@ fn min(
     }
     Some((beta, pot_move))
 }
-
 
 fn get_piece_value(piece: Piece) -> i32 {
     match piece {
