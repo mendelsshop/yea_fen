@@ -26,8 +26,7 @@ pub fn minimax(
             };
             if moves.len() == 1 {
                 let score = moves.iter().last().unwrap();
-                    return Some((*score, Some(prom)))
-                
+                return Some((*score, Some(prom)));
             }
 
             let mut pot_move = **pick_random(&moves.iter().collect())?;
