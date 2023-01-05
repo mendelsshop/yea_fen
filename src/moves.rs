@@ -689,6 +689,9 @@ impl GameState {
     }
 
     pub fn get_all_valid_moves(&mut self, player: Color) -> HashSet<MoveType<Pos, Colored<Piece>>> {
+        if self.result != GameResult::InProgress {
+            return HashSet::new();
+        }
         let mut ret = self.get_all_moves(player);
         ret.retain(|pos| {
             // iterate over moves

@@ -1,17 +1,52 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use crate::{chess_engines::pick_random, moves::{MoveType, GameResult}, Color, Colored, GameState, Piece, Pos};
+use crate::{
+    chess_engines::pick_random,
+    moves::{GameResult, MoveType},
+    Color, Colored, GameState, Piece, Pos,
+};
 
-use super::get_capture_piece_value;
 
 pub fn minimax(
     game: &GameState,
     depth: usize,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
     let mut new_game = game.clone();
-    println!("{:?}", game.active_color);
-    let ret = max(&mut new_game, depth, i32::MIN, i32::MAX);
+    let color = game.active_color.clone();
+    let ret = {
+        let mut alpha = i32::MIN;
+        let beta = i32::MAX;
+        if depth == 0 {
+            None
+        } else {
+            let moves = new_game.get_all_valid_moves(new_game.active_color);
+            let mut pot_move = **pick_random(&moves.iter().collect())?;
+            let mut moves = moves.iter();
+            loop {
+                let r#move = match moves.next() {
+                    None => break Some((alpha, pot_move)),
+                    Some(mv) => mv
+                };
+                let prom = match game.active_color {
+                    Color::Black => Colored::Black(Piece::Queen),
+                    Color::White => Colored::White(Piece::Queen),
+                };
+                new_game.do_move(*r#move, Some(prom));
+                let score = min(&mut new_game, depth - 1, alpha, beta, color);
+                    if score >= beta {
+                        new_game.undo_move();
+                        break Some((beta, *r#move));
+                    }
+                    if score > alpha {
+                        alpha = score;
+                        pot_move = *r#move;
+                    }
+                new_game.undo_move();
+            }
+            
+        }
+    };
     ret.map(|num| {
         let promotion = match game.active_color {
             Color::Black => Colored::Black(Piece::Queen),
@@ -22,89 +57,61 @@ pub fn minimax(
 }
 
 pub fn do_minimax(game: &mut GameState, depth: usize) -> bool {
-
     minimax(game, depth).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
-fn max(
-    game: &mut GameState,
-    depth: usize,
-    mut alpha: i32,
-    beta: i32,
-) -> Option<(i32, MoveType<Pos, Colored<Piece>>)> {
-    // println!("max alpha {} beta {}", alpha, beta);
+fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Color) -> i32 {
     if depth == 0 {
-        return Some(eval_board(game));
+        return eval_board(game, color);
     }
-    // println!("-");
     let moves = game.get_all_valid_moves(game.active_color);
-    if game.result == GameResult::CheckMate(game.active_color) {
-        println!("check mate found on {:?}", game.active_color);
-
-        
-    }
-    // for r#move in moves {
-    //     max(game, depth-1, color, alpha, beta );
-    // }
-    let mut pot_move = **pick_random(&moves.iter().collect())?;
-
     for r#move in &moves {
         let prom = match game.active_color {
             Color::Black => Colored::Black(Piece::Queen),
             Color::White => Colored::White(Piece::Queen),
         };
-        game.do_move(*r#move, Some(prom));
-        if let Some(score) = min(game, depth - 1, alpha, beta) {
-            
-            if score.0 >= beta {
+        if game.do_move(*r#move, Some(prom)) {
+        let  score = min(game, depth - 1, alpha, beta, color) ;
+            if score >= beta {
                 game.undo_move();
-                return Some((beta, *r#move));
+                return beta;
             }
-            if score.0 > alpha {
-                alpha = score.0;
-                pot_move = *r#move;
+            if score > alpha {
+                alpha = score;
             }
         }
         game.undo_move();
-        // Some(())
     }
 
-    Some((alpha, pot_move))
+    alpha
 }
 
-fn min(
-    game: &mut GameState,
-    depth: usize,
-    alpha: i32,
-    mut beta: i32,
-) -> Option<(i32, MoveType<Pos, Colored<Piece>>)> {
+fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Color) -> i32 {
     if depth == 0 {
-        let score = eval_board(game);
-        return Some((-score.0, score.1));
+        let score = eval_board(game, color);
+        return -score;
     }
     let moves = game.get_all_valid_moves(game.active_color);
-    let mut pot_move = **pick_random(&moves.iter().collect())?;
     for r#move in &moves {
         let prom = match game.active_color {
             Color::Black => Colored::Black(Piece::Queen),
             Color::White => Colored::White(Piece::Queen),
         };
-        game.do_move(*r#move, Some(prom));
-        if let Some(score) = max(game, depth - 1, alpha, beta) {
-            if score.0 <= alpha {
+        if game.do_move(*r#move, Some(prom)) {
+        let score = max(game, depth - 1, alpha, beta, color);
+            if score <= alpha {
                 game.undo_move();
-                return Some((alpha, *r#move));
+                return alpha;
             }
-            if score.0 < beta {
-                beta = score.0;
-                pot_move = *r#move;
+            if score < beta {
+                beta = score;
             }
         }
         game.undo_move();
+    
     }
-    Some((beta, pot_move))
+    beta
 }
-
 
 fn get_piece_value(piece: Piece) -> i32 {
     match piece {
@@ -117,17 +124,24 @@ fn get_piece_value(piece: Piece) -> i32 {
     }
 }
 
-fn eval_board(game: &GameState) -> (i32, MoveType<Pos, Colored<Piece>>) {
+fn eval_board(game: &GameState, color: Color) -> i32 {
     // evalutes the board based on how many pieces we have and their value
     let mut ret = 0;
-    for row in game.board.board {
-        for piece in row.into_iter().flatten() {
-            if Color::from(piece) == game.active_color {
-                ret += get_piece_value(Piece::from(piece));
+    match game.result {
+        GameResult::CheckMate(c_color) => ret = if c_color == color {i32::MIN} else {i32::MAX},
+        GameResult::StaleMate => ret = -50,
+        GameResult::Draw => ret = -50,
+        GameResult::InProgress =>     for row in game.board.board {
+            for piece in row.into_iter().flatten() {
+                if Color::from(piece) == game.active_color {
+                    // todo: use piece list and add point for being in certain positions
+                    ret += get_piece_value(Piece::from(piece));
+                }
             }
-        }
+        },
     }
-    (ret, game.moves.last().unwrap().move_type)
+
+    ret
 }
 
 #[cfg(test)]
