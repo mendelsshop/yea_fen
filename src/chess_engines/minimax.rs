@@ -20,6 +20,16 @@ pub fn minimax(
             None
         } else {
             let moves = new_game.get_all_valid_moves(new_game.active_color);
+            let prom = match game.active_color {
+                Color::Black => Colored::Black(Piece::Queen),
+                Color::White => Colored::White(Piece::Queen),
+            };
+            if moves.len() == 1 {
+                let score = moves.iter().last().unwrap();
+                    return Some((*score, Some(prom)))
+                
+            }
+
             let mut pot_move = **pick_random(&moves.iter().collect())?;
             let mut moves = moves.iter();
             loop {
@@ -27,10 +37,7 @@ pub fn minimax(
                     None => break Some((alpha, pot_move)),
                     Some(mv) => mv,
                 };
-                let prom = match game.active_color {
-                    Color::Black => Colored::Black(Piece::Queen),
-                    Color::White => Colored::White(Piece::Queen),
-                };
+
                 new_game.do_move(*r#move, Some(prom));
                 let score = min(&mut new_game, depth - 1, alpha, beta, color);
                 if score >= beta {
@@ -63,12 +70,12 @@ fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Col
     if depth == 0 {
         return eval_board(game, color);
     }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
     let moves = game.get_all_valid_moves(game.active_color);
     for r#move in &moves {
-        let prom = match game.active_color {
-            Color::Black => Colored::Black(Piece::Queen),
-            Color::White => Colored::White(Piece::Queen),
-        };
         if game.do_move(*r#move, Some(prom)) {
             let score = min(game, depth - 1, alpha, beta, color);
             if score >= beta {
@@ -90,12 +97,12 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
         let score = eval_board(game, color);
         return -score;
     }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
     let moves = game.get_all_valid_moves(game.active_color);
     for r#move in &moves {
-        let prom = match game.active_color {
-            Color::Black => Colored::Black(Piece::Queen),
-            Color::White => Colored::White(Piece::Queen),
-        };
         if game.do_move(*r#move, Some(prom)) {
             let score = max(game, depth - 1, alpha, beta, color);
             if score <= alpha {
