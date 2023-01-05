@@ -7,7 +7,6 @@ use crate::{
     Color, Colored, GameState, Piece, Pos,
 };
 
-
 pub fn minimax(
     game: &GameState,
     depth: usize,
@@ -26,7 +25,7 @@ pub fn minimax(
             loop {
                 let r#move = match moves.next() {
                     None => break Some((alpha, pot_move)),
-                    Some(mv) => mv
+                    Some(mv) => mv,
                 };
                 let prom = match game.active_color {
                     Color::Black => Colored::Black(Piece::Queen),
@@ -34,19 +33,19 @@ pub fn minimax(
                 };
                 new_game.do_move(*r#move, Some(prom));
                 let score = min(&mut new_game, depth - 1, alpha, beta, color);
-                    if score >= beta {
-                        new_game.undo_move();
-                        break Some((beta, *r#move));
-                    }
-                    if score > alpha {
-                        alpha = score;
-                        pot_move = *r#move;
-                    }
+                if score >= beta {
+                    new_game.undo_move();
+                    break Some((beta, *r#move));
+                }
+                if score > alpha {
+                    alpha = score;
+                    pot_move = *r#move;
+                }
                 new_game.undo_move();
             }
-            
         }
     };
+
     ret.map(|num| {
         let promotion = match game.active_color {
             Color::Black => Colored::Black(Piece::Queen),
@@ -71,7 +70,7 @@ fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Col
             Color::White => Colored::White(Piece::Queen),
         };
         if game.do_move(*r#move, Some(prom)) {
-        let  score = min(game, depth - 1, alpha, beta, color) ;
+            let score = min(game, depth - 1, alpha, beta, color);
             if score >= beta {
                 game.undo_move();
                 return beta;
@@ -98,7 +97,7 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
             Color::White => Colored::White(Piece::Queen),
         };
         if game.do_move(*r#move, Some(prom)) {
-        let score = max(game, depth - 1, alpha, beta, color);
+            let score = max(game, depth - 1, alpha, beta, color);
             if score <= alpha {
                 game.undo_move();
                 return alpha;
@@ -108,7 +107,6 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
             }
         }
         game.undo_move();
-    
     }
     beta
 }
@@ -128,17 +126,19 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
     // evalutes the board based on how many pieces we have and their value
     let mut ret = 0;
     match game.result {
-        GameResult::CheckMate(c_color) => ret = if c_color == color {i32::MIN} else {i32::MAX},
+        GameResult::CheckMate(c_color) => ret = if c_color == color { i32::MIN } else { i32::MAX },
         GameResult::StaleMate => ret = -50,
         GameResult::Draw => ret = -50,
-        GameResult::InProgress =>     for row in game.board.board {
-            for piece in row.into_iter().flatten() {
-                if Color::from(piece) == game.active_color {
-                    // todo: use piece list and add point for being in certain positions
-                    ret += get_piece_value(Piece::from(piece));
+        GameResult::InProgress => {
+            for row in game.board.board {
+                for piece in row.into_iter().flatten() {
+                    if Color::from(piece) == game.active_color {
+                        // todo: use piece list and add point for being in certain positions
+                        ret += get_piece_value(Piece::from(piece));
+                    }
                 }
             }
-        },
+        }
     }
 
     ret
