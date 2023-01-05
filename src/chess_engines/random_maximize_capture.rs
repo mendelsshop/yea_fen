@@ -1,13 +1,16 @@
 use std::cmp::Ordering;
 
-use crate::{moves::MoveType, GameState, Piece};
+use crate::{moves::MoveType, Colored, GameState, Piece, Pos};
 
-use super::{pick_random, promotion};
+use super::{get_capture_piece_value, pick_random, promotion};
 
-pub fn do_random_maximize_capture(game: &mut GameState) -> bool {
-    let moves = game.get_all_valid_moves(game.active_color);
+pub fn random_maximize_capture(
+    game: &GameState,
+) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
+    let mut game_clone = game.clone();
+    let moves = game_clone.get_all_valid_moves(game.active_color);
     if moves.is_empty() {
-        return false;
+        return None;
     }
     // king | move = 1
     // queen = 9
@@ -67,16 +70,13 @@ pub fn do_random_maximize_capture(game: &mut GameState) -> bool {
             .expect("this cannot happen")
             .0;
     };
-    let item = match pick_random(&moves) {
-        Some(x) => **x,
-        None => return false,
-    };
+    let item = **pick_random(&moves)?;
     let promotion = promotion(&item, game);
-    if !game.do_move(item, promotion) {
-        return false;
-    }
+    Some((item, promotion))
+}
 
-    true
+pub fn do_random_maximize_capture(game: &mut GameState) -> bool {
+    random_maximize_capture(game).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
 const fn get_piece_value(piece: Piece) -> i32 {
@@ -85,15 +85,6 @@ const fn get_piece_value(piece: Piece) -> i32 {
         Piece::Queen | Piece::Rook => 2,
         Piece::Bishop | Piece::Knight => 4,
         Piece::Pawn => 6,
-    }
-}
-
-const fn get_capture_piece_value(piece: Piece) -> i32 {
-    match piece {
-        Piece::King | Piece::Pawn => 1,
-        Piece::Queen => 9,
-        Piece::Rook => 5,
-        Piece::Bishop | Piece::Knight => 3,
     }
 }
 

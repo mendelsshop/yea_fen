@@ -1,22 +1,23 @@
-use crate::GameState;
+use crate::{moves::MoveType, Colored, GameState, Piece, Pos};
 
 use super::{pick_random, promotion};
 
-pub fn do_random_move(game: &mut GameState) -> bool {
-    let binding = game.get_all_valid_moves(game.active_color);
+pub fn random_move(
+    game: &GameState,
+) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
+    let mut game_clone = game.clone();
+    let binding = game_clone.get_all_valid_moves(game.active_color);
     if binding.is_empty() {
-        return false;
+        return None;
     }
     let moves = binding.iter().collect::<Vec<_>>();
-    let item = match pick_random(&moves) {
-        Some(x) => **x,
-        None => return false,
-    };
-    let promotion = promotion(&item, game);
-    if !game.do_move(item, promotion) {
-        return false;
-    }
-    true
+    let item = pick_random(&moves)?;
+    let promotion = promotion(item, game);
+    Some((**item, promotion))
+}
+
+pub fn do_random_move(game: &mut GameState) -> bool {
+    random_move(game).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
 #[cfg(test)]

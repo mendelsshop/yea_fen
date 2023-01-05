@@ -89,6 +89,19 @@ impl MoveType<Pos, Colored<Piece>> {
             Self::Check => None,
         }
     }
+
+    pub fn color(&self) -> Color {
+        match *self {
+            Self::Capture { piece, .. }
+            | Self::Move { piece, .. }
+            | Self::CapturePromotion { piece, .. }
+            | Self::MovePromotion { piece, .. }
+            | Self::EnPassant { piece, .. }
+            | Self::Castle { king: piece, .. } => Color::from(piece),
+            Self::Check => todo!(),
+        }
+    }
+
     pub fn to(&self, piece: Option<Colored<Piece>>) -> Pos {
         // if its a castle, then check if its a king or a rook and return the new position of the king or the rook
         match self {
@@ -125,6 +138,13 @@ impl MoveType<Pos, Colored<Piece>> {
                 | Self::CapturePromotion { .. }
         )
     }
+
+    pub const fn is_promotion(&self) -> bool {
+        matches!(
+            self,
+            Self::MovePromotion { .. } | Self::CapturePromotion { .. }
+        )
+    }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Move {
@@ -136,7 +156,7 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn get_type(&self) -> &MoveType<Pos, Colored<Piece>> {
+    pub const fn get_type(&self) -> &MoveType<Pos, Colored<Piece>> {
         &self.move_type
     }
 }
@@ -1540,7 +1560,7 @@ mod move_tests {
             "{:?}",
             moves
                 .iter()
-                .map(|movetype| movetype.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>()
         );
         // check that there are no moves for the knight at c6
@@ -1627,7 +1647,7 @@ mod move_tests {
             "{:?}",
             moves
                 .iter()
-                .map(|movetype| movetype.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>()
         );
         // check that there are no moves for the knight at c6
@@ -1651,7 +1671,7 @@ mod move_tests {
             "{:?}",
             moves
                 .iter()
-                .map(|movetype| movetype.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>()
         );
     }
