@@ -1,7 +1,7 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use crate::{chess_engines::pick_random, moves::MoveType, Color, Colored, GameState, Piece, Pos};
+use crate::{chess_engines::pick_random, moves::{MoveType, GameResult}, Color, Colored, GameState, Piece, Pos};
 
 use super::get_capture_piece_value;
 
@@ -10,6 +10,7 @@ pub fn minimax(
     depth: usize,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
     let mut new_game = game.clone();
+    println!("{:?}", game.active_color);
     let ret = max(&mut new_game, depth, i32::MIN, i32::MAX);
     ret.map(|num| {
         let promotion = match game.active_color {
@@ -21,6 +22,7 @@ pub fn minimax(
 }
 
 pub fn do_minimax(game: &mut GameState, depth: usize) -> bool {
+
     minimax(game, depth).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
@@ -34,11 +36,18 @@ fn max(
     if depth == 0 {
         return Some(eval_board(game));
     }
+    // println!("-");
     let moves = game.get_all_valid_moves(game.active_color);
+    if game.result == GameResult::CheckMate(game.active_color) {
+        println!("check mate found on {:?}", game.active_color);
+
+        
+    }
     // for r#move in moves {
     //     max(game, depth-1, color, alpha, beta );
     // }
     let mut pot_move = **pick_random(&moves.iter().collect())?;
+
     for r#move in &moves {
         let prom = match game.active_color {
             Color::Black => Colored::Black(Piece::Queen),
@@ -46,8 +55,9 @@ fn max(
         };
         game.do_move(*r#move, Some(prom));
         if let Some(score) = min(game, depth - 1, alpha, beta) {
-            game.undo_move();
+            
             if score.0 >= beta {
+                game.undo_move();
                 return Some((beta, *r#move));
             }
             if score.0 > alpha {
@@ -55,7 +65,7 @@ fn max(
                 pot_move = *r#move;
             }
         }
-
+        game.undo_move();
         // Some(())
     }
 
@@ -81,8 +91,8 @@ fn min(
         };
         game.do_move(*r#move, Some(prom));
         if let Some(score) = max(game, depth - 1, alpha, beta) {
-            game.undo_move();
             if score.0 <= alpha {
+                game.undo_move();
                 return Some((alpha, *r#move));
             }
             if score.0 < beta {
@@ -90,8 +100,21 @@ fn min(
                 pot_move = *r#move;
             }
         }
+        game.undo_move();
     }
     Some((beta, pot_move))
+}
+
+
+fn get_piece_value(piece: Piece) -> i32 {
+    match piece {
+        Piece::Pawn => 1,
+        Piece::Knight => 3,
+        Piece::Bishop => 3,
+        Piece::Rook => 5,
+        Piece::Queen => 9,
+        Piece::King => 100,
+    }
 }
 
 fn eval_board(game: &GameState) -> (i32, MoveType<Pos, Colored<Piece>>) {
@@ -100,7 +123,7 @@ fn eval_board(game: &GameState) -> (i32, MoveType<Pos, Colored<Piece>>) {
     for row in game.board.board {
         for piece in row.into_iter().flatten() {
             if Color::from(piece) == game.active_color {
-                ret += get_capture_piece_value(Piece::from(piece));
+                ret += get_piece_value(Piece::from(piece));
             }
         }
     }
