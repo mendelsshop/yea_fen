@@ -12,7 +12,7 @@ pub fn minimax(
     depth: usize,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
     let mut new_game = game.clone();
-    let color = game.active_color.clone();
+    let color = game.active_color;
     let ret = {
         let mut alpha = i32::MIN;
         let beta = i32::MAX;
@@ -117,11 +117,10 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
     beta
 }
 
-fn get_piece_value(piece: Piece) -> i32 {
+const fn get_piece_value(piece: Piece) -> i32 {
     match piece {
         Piece::Pawn => 1,
-        Piece::Knight => 3,
-        Piece::Bishop => 3,
+        Piece::Knight | Piece::Bishop => 3,
         Piece::Rook => 5,
         Piece::Queen => 9,
         Piece::King => 100,
@@ -133,8 +132,7 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
     let mut ret = 0;
     match game.result {
         GameResult::CheckMate(c_color) => ret = if c_color == color { i32::MIN } else { i32::MAX },
-        GameResult::StaleMate => ret = -50,
-        GameResult::Draw => ret = -50,
+        GameResult::StaleMate | GameResult::Draw => ret = -50,
         GameResult::InProgress => {
             for row in game.board.board {
                 for piece in row.into_iter().flatten() {

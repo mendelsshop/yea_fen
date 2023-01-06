@@ -1,6 +1,14 @@
 #![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![deny(clippy::use_self, rust_2018_idioms)]
 #![allow(clippy::must_use_candidate)]
+// temp allows
+// #![allow(
+//     clippy::cast_possible_truncation,
+//     clippy::cast_sign_loss,
+//     clippy::missing_panics_doc,
+//     clippy::too_many_lines,
+//     clippy::type_complexity
+// )]
 pub mod chess_engines;
 /// stuff that has to do with making chess moves
 pub mod moves;
@@ -59,22 +67,22 @@ pub enum Colored<A> {
 
 impl<A: Eq> Colored<A> {
     /// check if inner value is equal to the given value
-    pub fn is(&self, value: A) -> bool {
+    pub fn is(&self, value: &A) -> bool {
         match self {
-            Self::Black(inner) | Self::White(inner) => inner == &value,
+            Self::Black(inner) | Self::White(inner) => inner == value,
         }
     }
 }
 
-impl <A> Colored<A> {
+impl<A> Colored<A> {
     /// get the inner value
-    pub fn get(&self) -> &A {
+    pub const fn get(&self) -> &A {
         match self {
             Self::Black(inner) | Self::White(inner) => inner,
         }
     }
 
-    pub fn new(color: Color, value: A) -> Self {
+    pub const fn new(color: Color, value: A) -> Self {
         match color {
             Color::Black => Self::Black(value),
             Color::White => Self::White(value),
@@ -280,8 +288,8 @@ pub struct GameState {
 
     pub(crate) moves: Vec<Move>,
     pub(crate) result: GameResult,
-    pub(crate) pins: Vec<(Pos, (i32, i32), Piece)>,
-    pub(crate) checks: Vec<(Pos, (i32, i32), Piece)>,
+    pub(crate) pins: Vec<(Pos, (i32, i32), Colored<Piece>)>,
+    pub(crate) checks: Vec<(Pos, (i32, i32), Colored<Piece>)>,
     pub(crate) in_check: bool,
 }
 
