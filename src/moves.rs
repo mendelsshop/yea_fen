@@ -853,7 +853,250 @@ impl GameState {
         &mut self,
         player: Color,
     ) -> HashSet<MoveType<Pos, Colored<Piece>>> {
+        // get all moves for player
+        let mut ret = self.get_all_moves(player);
+        // split moves into king moves and non king moves
+        let (king_moves, non_king_moves): (Vec<_>, Vec<_>) = ret
+            .iter()
+            .cloned()
+            .partition(|x| match x {
+                MoveType::Move { piece, .. } | MoveType::Capture { piece, .. }  => piece.is(Piece::King),
+                MoveType::EnPassant { .. } | MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => false,
+                MoveType::Castle { .. } => true,
+                MoveType::Check => todo!(),
+                
+            });
+        // filter out king moves that are not legal
+        let king_moves = king_moves
+            .into_iter()
+            .filter(|x| self.is_legal(player, x.clone(), None));
+        // filter out non king moves that are not legal
+        let king_pos = self.find_king(player);
+        println!("{}", king_pos.unwrap());
+        let non_king_moves = non_king_moves
+            .into_iter()
+            .filter(|x| self.is_legal(player, x.clone(), king_pos));
+
+
         todo!()
+    }
+
+    pub fn is_legal(&mut self, player: Color, r#move: MoveType<Pos, Colored<Piece>>, king: Option<Pos>) -> bool {
+        // if its a castle move then we need to check if the king is in check or if the king is moving through a square that is attacked by an enemy piece
+        // do the move
+        match player {
+            Color::White => self.do_move(r#move, Some(Colored::White(Piece::Queen))),
+            Color::Black => self.do_move(r#move, Some(Colored::Black(Piece::Queen))),
+        };
+
+        // in no king is provided then we need to find the king
+        let king = match king {
+            Some(x) => x,
+            None => self.find_king(player).unwrap(),
+        };
+        // check if the king is in check
+        // by going up and down the diagonal and checking if there is a queen or bishop or pawn of the opposite color
+        // by going up and down the row and checking if there is a queen or rook or pawn of the opposite color
+        // by going up and down the column and checking if there is a queen or rook or pawn of the opposite color
+        // by going up and down the knight moves and checking if there is a knight of the opposite color
+        // by going up and down the king moves and checking if there is a king of the opposite color
+        // undo the move
+        // return true if the king is not in check
+        // return false if the king is in check
+        todo!()
+
+
+
+    }
+
+    fn new_all_valid_moves(&mut self, player: Color) -> HashSet<MoveType<Pos, Colored<Piece>>> {
+        // find king pos
+        let king_pos = self.find_king(player).unwrap();
+        let (pins, checks, in_check) = self.pins_and_checks(king_pos, player);
+        self.pins = pins;
+        self.checks = checks.clone();
+        self.in_check = in_check;
+        if in_check {
+            if checks.len() == 1 {
+                let mut valid_poses = vec![];
+                // get all moves for player and check if any of the moves block the check
+                let check = checks[0];
+                let moves = self.get_all_moves(player);
+                if check.2 == Piece::Knight {
+                    valid_poses.push(check.0);
+                    // if the piece checking the king is a knight then the only move that can be made is to capture the knight
+
+                } else {
+                    for i in 1..8 {
+                        let pos = Pos::new(
+                            king_pos.row + check.1.0 as u8 * i, 
+                            king_pos.column + check.1.1 as u8 * i
+                        );
+                        if pos == check.0 {
+                            break;
+                        }
+                    }
+
+                }
+                // for r#move in moves {
+
+                // }
+                moves.into_iter().filter(|r#move| {
+                    // if the move is not from a king or nott a piace in valid_poses then it is not a valid move
+                    match *r#move {
+                        MoveType::Move { piece, .. } | MoveType::Capture { piece, .. } | MoveType::EnPassant { piece, .. } | MoveType::MovePromotion { piece, .. } | MoveType::CapturePromotion { piece, .. } => {
+                            piece.is(Piece::King) || valid_poses.contains(&r#move.to(Some(piece)))
+                        }
+                        //  => false,
+                        MoveType::Castle { .. } => false,
+                        MoveType::Check => todo!(),
+
+
+                    }
+                }).collect()
+            } else {
+                // todo make get_piece_moves have special cases for pinned and checking pieces
+                self.get_piece_moves(king_pos)
+            }
+
+        }
+        else {
+            // todo make get_all_moves have special cases for pinned and checking pieces
+            self.get_all_moves(player)
+        }
+
+        
+
+        
+    }
+
+    fn pins_and_checks(&self, king_pos: Pos, player: Color) -> (Vec<(Pos, (i32, i32), Piece)>, Vec<(Pos, (i32, i32), Piece)>, bool) {
+        let mut pins = vec![];
+        let mut checks = vec![];
+        let mut in_check: bool = false;
+        let directions: [(i32, i32); 8] = [
+            (-1, 0),
+            (0, -1),
+            (1, 0),
+            (0, 1),
+            (-1, -1),
+            (-1, 1),
+            (1, -1),
+            (1, 1),
+        ];
+        for j in 0..8 {
+            let direction = directions[j];
+            let mut possuble_pins = None;
+            for i in 1..8 {
+                let row = king_pos.row as i32 + direction.0 * i;
+                let col = king_pos.column as i32 + direction.1 * i;
+                if (1..=8).contains(&row) && (1..=8).contains(&col) {
+                    let piece_pos =Pos::new(row as u8, col as u8);
+                    if let Some(Some(piece)) = self.board.get_cell(piece_pos) {
+                        let piece_type = Piece::from(*piece);
+                        let piece_color = Color::from(*piece);
+                        if piece_color == player {
+                            if let None = possuble_pins {
+                                possuble_pins = Some((piece_pos, direction, piece_type))
+                            } else {
+                                break;
+                            }
+                            
+                        }
+                        else {
+                            // enemy piece
+                            
+                            if
+                            // rook case 
+                            ((0..=3).contains(&j) && piece_type == Piece::Rook) || 
+                            // bishop case
+                            ((4..=7).contains(&j) && piece_type == Piece::Bishop) ||
+                            // pawn case
+                            (i==1 && piece_type == Piece::Pawn && 
+                                ((piece_color == Color::White && (6..=7).contains(&j))  || 
+                                 (piece_color == Color::Black && (4..=5).contains(&j)))
+                            ) ||
+                            // queen case
+                            (piece_type == Piece::Queen) ||
+                            // king case
+                            (i == 1 && piece_type == Piece::King)
+                             {
+                                if let Some(pin)  = possuble_pins  {
+                                    pins.push(pin);
+                                    break;
+                                } else {
+                                    in_check = true;
+                                    checks.push((piece_pos, direction, piece_type));
+                                    break;
+                                }
+
+                            } else {
+                                break
+                            }
+
+                        }
+                        
+                        
+
+                        
+                    }
+
+                } else {
+                    break
+                }
+
+            }
+        }
+        
+        let night_moves: [(i32, i32); 8] = [
+            (-2, -1),
+            (-2, 1),
+            (-1, -2),
+            (-1, 2),
+            (1, -2),
+            (1, 2),
+            (2, -1),
+            (2, 1),
+        ];
+        for m in night_moves {
+            let row = king_pos.row as i32 + m.0;
+            let col = king_pos.column as i32 + m.1;
+            if (1..=8).contains(&row) && (1..=8).contains(&col) { 
+                let piece_pos =Pos::new(row as u8, col as u8);
+                if let Some(Some(piece)) = self.board.get_cell(piece_pos) {
+                    if &Colored::new(match player {
+                        Color::Black => Color::White,
+                        Color::White => Color::Black,
+                    }, Piece::Knight) == piece {
+                        in_check = true;
+                        checks.push((piece_pos, m, Piece::Knight));
+
+                    }
+                    
+                }
+
+            }
+
+        }
+        (pins, checks, in_check)
+
+
+    }
+
+    fn find_king(&self, player: Color) -> Option<Pos> {
+        self.board
+            .board
+            .iter()
+            .enumerate()
+            .flat_map(|(row, x)| {
+                x.iter()
+                    .enumerate()
+                    .filter_map(move |(column, y)| match y {
+                        Some(c) if c == &Colored::new(player, Piece::King) => Some(Pos::new(row as u8 + 1, column as u8 + 1)),
+                        _ => None,
+                    })
+            })
+            .next()
     }
 
     pub fn do_move(
@@ -1295,8 +1538,17 @@ mod move_tests {
             moves.len(),
             end.as_micros()
         );
+        
+        let start = Instant::now();
+        let moves = gamestate.new_all_valid_moves(Color::Black);
+        let end = start.elapsed();
+        println!(
+            "{} legal moves generated in {:?}ms",
+            moves.len(),
+            end.as_micros()
+        );
         // println!("{:?}", moves);
-        slmoves.difference(&moves).for_each(|x| println!("{}", x));
+        // slmoves.difference(&moves).for_each(|x| println!("{}", x));
     }
 
     #[test]

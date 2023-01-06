@@ -57,6 +57,30 @@ pub enum Colored<A> {
     White(A),
 }
 
+impl<A: Eq> Colored<A> {
+    /// check if inner value is equal to the given value
+    pub fn is(&self, value: A) -> bool {
+        match self {
+            Self::Black(inner) | Self::White(inner) => inner == &value,
+        }
+    }
+}
+
+impl <A> Colored<A> {
+    /// get the inner value
+    pub fn get(&self) -> &A {
+        match self {
+            Self::Black(inner) | Self::White(inner) => inner,
+        }
+    }
+
+    pub fn new(color: Color, value: A) -> Self {
+        match color {
+            Color::Black => Self::Black(value),
+            Color::White => Self::White(value),
+        }
+    }
+}
 // implent the From trait to convert Colored<A> to Color
 impl<A> From<Colored<A>> for Color {
     fn from(colored: Colored<A>) -> Self {
@@ -256,6 +280,9 @@ pub struct GameState {
 
     pub(crate) moves: Vec<Move>,
     pub(crate) result: GameResult,
+    pub(crate) pins: Vec<(Pos, (i32, i32), Piece)>,
+    pub(crate) checks: Vec<(Pos, (i32, i32), Piece)>,
+    pub(crate) in_check: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -325,6 +352,9 @@ impl GameState {
             en_passant: None,
             moves: Vec::new(),
             result: GameResult::InProgress,
+            pins: Vec::new(),
+            checks: Vec::new(),
+            in_check: false,
         }
     }
 
@@ -459,6 +489,9 @@ impl FromStr for GameState {
             en_passant,
             moves: Vec::new(),
             result: GameResult::InProgress,
+            pins: Vec::new(),
+            checks: Vec::new(),
+            in_check: false,
         })
     }
 }
