@@ -849,7 +849,10 @@ impl GameState {
         ret
     }
 
-    pub fn get_all_valid_moves_fast(&mut self, player: Color) -> HashSet<MoveType<Pos, Colored<Piece>>> {
+    pub fn get_all_valid_moves_fast(
+        &mut self,
+        player: Color,
+    ) -> HashSet<MoveType<Pos, Colored<Piece>>> {
         todo!()
     }
 
@@ -1238,18 +1241,34 @@ mod move_tests {
     fn benchmark_move_generation() {
         let mut gamestate = GameState::new();
         // move the white pawn at e2 to e4
-        let r#move = MoveType::Move { origin: Pos::from_str("e2").unwrap(), new: Pos::from_str("e4").unwrap(), piece: Colored::White(Piece::Pawn) };
+        let r#move = MoveType::Move {
+            origin: Pos::from_str("e2").unwrap(),
+            new: Pos::from_str("e4").unwrap(),
+            piece: Colored::White(Piece::Pawn),
+        };
         gamestate.do_move(r#move, None);
         // move the black pawn at e7 to e5
-        let r#move = MoveType::Move { origin: Pos::from_str("e7").unwrap(), new: Pos::from_str("e5").unwrap(), piece: Colored::Black(Piece::Pawn) };
+        let r#move = MoveType::Move {
+            origin: Pos::from_str("e7").unwrap(),
+            new: Pos::from_str("e5").unwrap(),
+            piece: Colored::Black(Piece::Pawn),
+        };
         gamestate.do_move(r#move, None);
         println!("{}", gamestate.board);
         // move the white queen out from d1 to h5
-        let r#move = MoveType::Move { origin: Pos::from_str("d1").unwrap(), new: Pos::from_str("h5").unwrap(), piece: Colored::White(Piece::Queen) };
+        let r#move = MoveType::Move {
+            origin: Pos::from_str("d1").unwrap(),
+            new: Pos::from_str("h5").unwrap(),
+            piece: Colored::White(Piece::Queen),
+        };
         gamestate.do_move(r#move, None);
         println!("{}", gamestate.board);
         // move the black queen out from d8 to h4
-        let r#move = MoveType::Move { origin: Pos::from_str("d8").unwrap(), new: Pos::from_str("h4").unwrap(), piece: Colored::Black(Piece::Queen) };
+        let r#move = MoveType::Move {
+            origin: Pos::from_str("d8").unwrap(),
+            new: Pos::from_str("h4").unwrap(),
+            piece: Colored::Black(Piece::Queen),
+        };
         let start = Instant::now();
         gamestate.do_move(r#move, None);
         let end = start.elapsed();
@@ -1262,18 +1281,22 @@ mod move_tests {
         let start = Instant::now();
         let slmoves = gamestate.get_all_moves(Color::Black);
         let end = start.elapsed();
-        println!("{} psudo-legal moves generated in {:?}ms", slmoves.len(), end.as_micros());
+        println!(
+            "{} psudo-legal moves generated in {:?}ms",
+            slmoves.len(),
+            end.as_micros()
+        );
         // println!("{:?}", slmoves);
         let start = Instant::now();
         let moves = gamestate.get_all_valid_moves(Color::Black);
         let end = start.elapsed();
-        println!("{} legal moves generated in {:?}ms", moves.len(), end.as_micros());
+        println!(
+            "{} legal moves generated in {:?}ms",
+            moves.len(),
+            end.as_micros()
+        );
         // println!("{:?}", moves);
         slmoves.difference(&moves).for_each(|x| println!("{}", x));
-
-
-
-
     }
 
     #[test]
