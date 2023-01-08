@@ -545,39 +545,6 @@ impl GameState {
                         }));
                         // check if last move was from an enemy pawn and if it was 2 spaces away
                         let new_enpessant = self.moves.last().and_then(|last_move| {
-                            // check if check_pins is true
-                            //  this is currently not working
-                            if check_pins {
-                                // get the king position
-                                let king_pos = self.find_king(color).unwrap();
-
-                                // if the kings row is pos.row
-
-                                if king_pos.row == pos.row {
-                                    println!("king is on the same row as the pawn");
-                                    // find any enemy pieces that can attack horizontally and are on the same row
-
-                                    // to do this we iterate over either fro 0..pos.column or pos.column..8 depending on the relative position of the king ie if the king is to the left of the pawn we iterate form pos.column..8 otherwise we iterate from 0..pos.column we should always start from th piecs's column
-                                    // if at any point we find a piece we check if it is an enemy piece and if it can attack horizontally if it can then we return None otherwise we break
-                                    for i in if king_pos.column < pos.column {
-                                        to_range_both(pos.column as i8, 8)
-                                    } else {
-                                        to_range_both(pos.column as i8, 0)
-                                    } {
-                                        if let Some(Some(piece_c)) =
-                                            self.board.get_cell(Pos::new(pos.row, i as u8))
-                                        {
-                                            if Color::from(*piece_c) != color {
-                                                match Piece::from(*piece_c) {
-                                                    Piece::Rook | Piece::Queen => return None,
-                                                    _ => {}
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
                             if pos.row
                                 != match color {
                                     Color::White => 5,
@@ -613,11 +580,53 @@ impl GameState {
                                 } else {
                                     return None;
                                 };
+                                // check if check_pins is true
+                                //  this is currently not working
+                                if check_pins {
+                                    // get the king position
+                                    let king_pos = self.find_king(color).unwrap();
+
+                                    // if the kings row is pos.row
+
+                                    if king_pos.row == pos.row {
+                                        println!("king is on the same row as the pawn");
+                                        // find any enemy pieces that can attack horizontally and are on the same row
+
+                                        // to do this we iterate over either fro 0..pos.column or pos.column..8 depending on the relative position of the king ie if the king is to the left of the pawn we iterate form pos.column..8 otherwise we iterate from 0..pos.column we should always start from th piecs's column
+                                        // if at any point we find a piece we check if it is an enemy piece and if it can attack horizontally if it can then we return None otherwise we break
+                                        // we should skip the pawn's column
+                                        for i in if king_pos.column < pos.column {
+                                            println!("king is to the left of the pawn");
+                                            to_range_both(pos.column.max(new.column) as i8 + 1, 8)
+                                        } else {
+                                            println!("king is to the right of the pawn");
+                                            to_range_both(pos.column.min(new.column) as i8 - 1, 1)
+                                        } {
+                                            if !(1..=8).contains(&i) {
+                                                // we don't want to check outside the board causr Pos::new will panic
+                                                break;
+                                            }
+                                            if let Some(Some(piece_c)) =
+                                                self.board.get_cell(Pos::new(pos.row, i as u8))
+                                            {
+                                                if Color::from(*piece_c) != color {
+                                                    if let Piece::Rook | Piece::Queen =
+                                                        Piece::from(*piece_c)
+                                                    {
+                                                        return None;
+                                                    }
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
 
                                 let new_pos = match color {
                                     Color::White => Pos::new(pos.row + 1, new_column),
                                     Color::Black => Pos::new(pos.row - 1, new_column),
                                 };
+
                                 ret.insert(MoveType::EnPassant {
                                     origin: pos,
                                     piece: *piece,
@@ -1405,7 +1414,7 @@ fn to_range(length: i8) -> Vec<i8> {
 }
 
 fn to_range_both(start: i8, end: i8) -> Vec<i8> {
-    if start < end {
+    if start > end {
         (start..=end).rev().collect::<Vec<i8>>()
     } else {
         (start..=end).collect::<Vec<i8>>()

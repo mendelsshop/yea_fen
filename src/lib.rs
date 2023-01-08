@@ -7,7 +7,8 @@
 //     clippy::cast_sign_loss,
 //     clippy::missing_panics_doc,
 //     clippy::too_many_lines,
-//     clippy::type_complexity
+//     clippy::type_complexity,
+//     clippy::cast_possible_wrap,
 // )]
 pub mod chess_engines;
 /// stuff that has to do with making chess moves
