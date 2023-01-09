@@ -8,18 +8,18 @@ use crate::{
 };
 
 pub fn minimax(
-    game: &GameState,
+    game: &mut GameState,
     depth: usize,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
     let mut new_game = game.clone();
     let color = game.active_color;
+    let moves = game.new_all_valid_moves(game.active_color);
     let ret = {
         let mut alpha = i32::MIN;
         let beta = i32::MAX;
         if depth == 0 {
             None
         } else {
-            let moves = new_game.get_all_valid_moves(new_game.active_color);
             let prom = match game.active_color {
                 Color::Black => Colored::Black(Piece::Queen),
                 Color::White => Colored::White(Piece::Queen),
@@ -73,7 +73,7 @@ fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Col
         Color::Black => Colored::Black(Piece::Queen),
         Color::White => Colored::White(Piece::Queen),
     };
-    let moves = game.get_all_valid_moves(game.active_color);
+    let moves = game.new_all_valid_moves(game.active_color);
     for r#move in &moves {
         if game.do_move(*r#move, Some(prom)) {
             let score = min(game, depth - 1, alpha, beta, color);
@@ -100,7 +100,7 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
         Color::Black => Colored::Black(Piece::Queen),
         Color::White => Colored::White(Piece::Queen),
     };
-    let moves = game.get_all_valid_moves(game.active_color);
+    let moves = game.new_all_valid_moves(game.active_color);
     for r#move in &moves {
         if game.do_move(*r#move, Some(prom)) {
             let score = max(game, depth - 1, alpha, beta, color);
@@ -150,7 +150,7 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
+    // use std::time::Instant;
 
     use super::*;
     use crate::{chess_engines::random::do_random_move, GameState};
@@ -158,21 +158,33 @@ mod tests {
     #[test]
     fn min_max() {
         let mut game = GameState::new();
-        for i in 0..4i32 {
-            if i.is_positive() {
-                let now = Instant::now();
-                minimax(&mut game, 6);
-                println!("{}", game.board);
-                println!(
-                    "took {}s color {:?}",
-                    now.elapsed().as_secs(),
-                    game.active_color
-                );
+        let mut i = 0;
+        while game.result == GameResult::InProgress {
+            if i % 2 == 0 {
+                // let now = Instant::now();
+                if do_minimax(&mut game, 7) {
+                    // println!("{}", game.board);
+                    // println!(
+                    //     "minimx took {}s color {:?}",
+                    //     now.elapsed().as_secs(),
+                    //     game.active_color
+                    // );
+                } else {
+                    println!("no moves {}", i);
+                    break;
+                };
             } else {
-                do_random_move(&mut game);
-                println!("{}", game.board);
-                println!("random");
+                if do_random_move(&mut game) {
+                    // println!("{}", game.board);
+                    // println!("random color {:?}", game.active_color);
+                } else {
+                    // println!("no moves {}", i);
+                    break;
+                };
             }
+            i += 1;
         }
+        println!("game over");
+        println!("{:?}", game.result);
     }
 }

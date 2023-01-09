@@ -5,10 +5,9 @@ use crate::{moves::MoveType, Colored, GameState, Piece, Pos};
 use super::{get_capture_piece_value, pick_random, promotion};
 
 pub fn random_maximize_capture(
-    game: &GameState,
+    game: &mut GameState,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
-    let mut game_clone = game.clone();
-    let moves = game_clone.get_all_valid_moves(game.active_color);
+    let moves = game.new_all_valid_moves(game.active_color);
     if moves.is_empty() {
         return None;
     }

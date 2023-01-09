@@ -3,10 +3,9 @@ use crate::{moves::MoveType, Colored, GameState, Piece, Pos};
 use super::{pick_random, promotion};
 
 pub fn random_move(
-    game: &GameState,
+    game: &mut GameState,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
-    let mut game_clone = game.clone();
-    let binding = game_clone.get_all_valid_moves(game.active_color);
+    let binding = game.new_all_valid_moves(game.active_color);
     if binding.is_empty() {
         return None;
     }

@@ -213,8 +213,17 @@ impl fmt::Display for MoveType<Pos, Colored<Piece>> {
 }
 
 macro_rules! check_insert {
-    ($itt:ident, $new:ident, $piece_color:ident, $ret:ident, $origin:expr, $check_pins:ident) => {
-        if $check_pins {
+    ($itt:ident, $new:ident, $piece_color:ident, $ret:ident, $origin:expr, $checks_n_pins:ident, $dir:expr) => {
+        if $checks_n_pins {
+            // we first check if the piece a king
+            if Piece::King == Piece::from($origin.1) {
+                // we run self(itt).pins_and_checks() to get the pins and checks
+                let (.., in_check) = $itt.pins_and_checks($new, $piece_color);
+                if in_check {
+                    break;
+                }
+
+            }
             // if the piece is pinned and cannot move in the direction of the pin, then it cannot move
             // if so we break the loop
             // first we need to check if the piece is pinned
@@ -247,13 +256,17 @@ macro_rules! check_insert {
                     }
                     // if the pin direction is one of a bishop, then the piece can only move in that direction if it is a bishop or a queen
                     (_, (-1 | 1, -1 | 1)) => {
-                        if !matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen) {
+                        if !matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen){
+                            break;
+                        } else if $dir.contains(&pin.1) && matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen) {
                             break;
                         }
                     }
                     // if the pin direction is one of a rook, then the piece can only move in that direction if it is a rook or a queen
                     (_, (-1 | 1, 0) | (0, -1 | 1)) => {
                         if !matches!(Piece::from($origin.1), Piece::Rook | Piece::Queen) {
+                            break;
+                        } else if $dir.contains(&pin.1) && matches!(Piece::from($origin.1), Piece::Rook | Piece::Queen) {
                             break;
                         }
                     }
@@ -323,7 +336,12 @@ pub enum GameResult {
 impl GameState {
     /// the `castle_king_side` and `castle_queen_side` methods do not actually do a castle they just check if a castle is available and if it is and it to ret
     /// we can also assume that the pieces are in there starting positions so we don'y have to around the board looking for them
-    fn castle_king_side(&self, player: Color, ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>) {
+    fn castle_king_side(
+        &self,
+        player: Color,
+        ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
+        checks_n_pins: bool,
+    ) {
         let ((king_pos, rook_pos), (new_k, new_r), (king, rook)) = match player {
             Color::Black => (
                 (Pos { row: 8, column: 5 }, Pos { row: 8, column: 8 }),
@@ -341,25 +359,31 @@ impl GameState {
                 continue;
             }
             if let Some(pos_n) = king_pos.add_row_and_column(0, i) {
-                match self.board.get_cell(pos_n) {
-                    Some(Some(_)) => break,
-                    _ => {
-                        if i == 2 {
-                            ret.insert(MoveType::Castle {
-                                king,
-                                rook,
-                                king_origin: king_pos,
-                                king_new: new_k,
-                                rook_origin: rook_pos,
-                                rook_new: new_r,
-                            });
-                        }
-                    }
+                if let Some(Some(_)) = self.board.get_cell(pos_n) {
+                    break;
+                } else if checks_n_pins && self.pins_and_checks(pos_n, player).2 {
+                    break;
+                }
+
+                if i == 2 {
+                    ret.insert(MoveType::Castle {
+                        king,
+                        rook,
+                        king_origin: king_pos,
+                        king_new: new_k,
+                        rook_origin: rook_pos,
+                        rook_new: new_r,
+                    });
                 }
             }
         }
     }
-    fn castle_queen_side(&self, player: Color, ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>) {
+    fn castle_queen_side(
+        &self,
+        player: Color,
+        ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
+        checks_n_pins: bool,
+    ) {
         let ((king_pos, rook_pos), (new_k, new_r), (king, rook)) = match player {
             Color::Black => (
                 (Pos { row: 8, column: 5 }, Pos { row: 8, column: 1 }),
@@ -376,8 +400,12 @@ impl GameState {
             if i == 0 {
                 continue;
             }
+
             if let Some(pos_n) = king_pos.add_row_and_column(0, i) {
                 if let Some(Some(_)) = self.board.get_cell(pos_n) {
+                    break;
+                }
+                if checks_n_pins && self.pins_and_checks(pos_n, player).2 {
                     break;
                 }
                 if i == -3 {
@@ -399,7 +427,7 @@ impl GameState {
     pub fn get_piece_moves(
         &mut self,
         pos: Pos,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) -> HashSet<MoveType<Pos, Colored<Piece>>> {
         match self.board.get_cell(pos) {
             None | Some(None) => HashSet::new(),
@@ -411,8 +439,8 @@ impl GameState {
                 let mut ret = HashSet::new();
                 match blank_piece {
                     Piece::King => {
-                        self.horiz_and_vert(pos, color, *piece, 1, &mut ret, check_pins);
-                        self.diag(pos, color, *piece, 1, &mut ret, check_pins);
+                        self.horiz_and_vert(pos, color, *piece, 1, &mut ret, checks_n_pins);
+                        self.diag(pos, color, *piece, 1, &mut ret, checks_n_pins);
 
                         // to figure out if we can castle
                         // first we see if the king is in check by by generating all the enemy moves and seeing if theres is a possiblity of the king being captured
@@ -424,25 +452,29 @@ impl GameState {
                         let casling = self.castling_moves.get(color);
                         match casling {
                             Castling::None => {}
-                            Castling::KingSide => self.castle_king_side(color, &mut ret),
-                            Castling::QueenSide => self.castle_queen_side(color, &mut ret),
+                            Castling::KingSide => {
+                                self.castle_king_side(color, &mut ret, checks_n_pins);
+                            }
+                            Castling::QueenSide => {
+                                self.castle_queen_side(color, &mut ret, checks_n_pins);
+                            }
                             Castling::Both => {
-                                self.castle_king_side(color, &mut ret);
-                                self.castle_queen_side(color, &mut ret);
+                                self.castle_king_side(color, &mut ret, checks_n_pins);
+                                self.castle_queen_side(color, &mut ret, checks_n_pins);
                             }
                         }
                     }
                     Piece::Queen => {
-                        self.horiz_and_vert(pos, color, *piece, 7, &mut ret, check_pins);
-                        self.diag(pos, color, *piece, 7, &mut ret, check_pins);
+                        self.horiz_and_vert(pos, color, *piece, 7, &mut ret, checks_n_pins);
+                        self.diag(pos, color, *piece, 7, &mut ret, checks_n_pins);
                     }
                     Piece::Rook => {
-                        self.horiz_and_vert(pos, color, *piece, 7, &mut ret, check_pins);
+                        self.horiz_and_vert(pos, color, *piece, 7, &mut ret, checks_n_pins);
                     }
-                    Piece::Bishop => self.diag(pos, color, *piece, 7, &mut ret, check_pins),
+                    Piece::Bishop => self.diag(pos, color, *piece, 7, &mut ret, checks_n_pins),
                     Piece::Knight => {
                         for x in -2..3i8 {
-                            if check_pins
+                            if checks_n_pins
                                 && self.pins.iter().any(|pin| pin.0 == pos && pin.2 == *piece)
                             {
                                 break;
@@ -502,16 +534,30 @@ impl GameState {
                         let mut possible = HashSet::new();
                         match (color, pos.row) {
                             (Color::White, 2) => {
-                                self.vert_half(pos, color, *piece, 2, &mut possible, check_pins);
+                                self.vert_half(pos, color, *piece, 2, &mut possible, checks_n_pins);
                             }
                             (Color::Black, 7) => {
-                                self.vert_half(pos, color, *piece, -2, &mut possible, check_pins);
+                                self.vert_half(
+                                    pos,
+                                    color,
+                                    *piece,
+                                    -2,
+                                    &mut possible,
+                                    checks_n_pins,
+                                );
                             }
                             (Color::Black, _) => {
-                                self.vert_half(pos, color, *piece, -1, &mut possible, check_pins);
+                                self.vert_half(
+                                    pos,
+                                    color,
+                                    *piece,
+                                    -1,
+                                    &mut possible,
+                                    checks_n_pins,
+                                );
                             }
                             (Color::White, _) => {
-                                self.vert_half(pos, color, *piece, 1, &mut possible, check_pins);
+                                self.vert_half(pos, color, *piece, 1, &mut possible, checks_n_pins);
                             }
                         }
                         ret.extend(possible.iter().filter(|thing| match **thing {
@@ -525,12 +571,33 @@ impl GameState {
                         let mut possible = HashSet::new();
                         match color {
                             Color::Black => {
-                                self.diag_left(pos, color, *piece, -1, &mut possible, check_pins);
-                                self.diag_right(pos, color, *piece, -1, &mut possible, check_pins);
+                                self.diag_left(
+                                    pos,
+                                    color,
+                                    *piece,
+                                    -1,
+                                    &mut possible,
+                                    checks_n_pins,
+                                );
+                                self.diag_right(
+                                    pos,
+                                    color,
+                                    *piece,
+                                    -1,
+                                    &mut possible,
+                                    checks_n_pins,
+                                );
                             }
                             Color::White => {
-                                self.diag_left(pos, color, *piece, 1, &mut possible, check_pins);
-                                self.diag_right(pos, color, *piece, 1, &mut possible, check_pins);
+                                self.diag_left(pos, color, *piece, 1, &mut possible, checks_n_pins);
+                                self.diag_right(
+                                    pos,
+                                    color,
+                                    *piece,
+                                    1,
+                                    &mut possible,
+                                    checks_n_pins,
+                                );
                             }
                         }
                         // validate the the possible values are captures and not just plain moves
@@ -580,26 +647,23 @@ impl GameState {
                                 } else {
                                     return None;
                                 };
-                                // check if check_pins is true
+                                // check if checks_n_pins is true
                                 //  this is currently not working
-                                if check_pins {
+                                if checks_n_pins {
                                     // get the king position
                                     let king_pos = self.find_king(color).unwrap();
 
                                     // if the kings row is pos.row
 
                                     if king_pos.row == pos.row {
-                                        println!("king is on the same row as the pawn");
                                         // find any enemy pieces that can attack horizontally and are on the same row
 
                                         // to do this we iterate over either fro 0..pos.column or pos.column..8 depending on the relative position of the king ie if the king is to the left of the pawn we iterate form pos.column..8 otherwise we iterate from 0..pos.column we should always start from th piecs's column
                                         // if at any point we find a piece we check if it is an enemy piece and if it can attack horizontally if it can then we return None otherwise we break
                                         // we should skip the pawn's column
                                         for i in if king_pos.column < pos.column {
-                                            println!("king is to the left of the pawn");
                                             to_range_both(pos.column.max(new.column) as i8 + 1, 8)
                                         } else {
-                                            println!("king is to the right of the pawn");
                                             to_range_both(pos.column.min(new.column) as i8 - 1, 1)
                                         } {
                                             if !(1..=8).contains(&i) {
@@ -657,14 +721,22 @@ impl GameState {
         piece: Colored<Piece>,
         length: i8,
         ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) {
         for i in to_range(length) {
             if i == 0 {
                 continue;
             }
             if let Some(pos_n) = pos.add_row_and_column(0, i) {
-                check_insert!(self, pos_n, piece_color, ret, (pos, piece), check_pins);
+                check_insert!(
+                    self,
+                    pos_n,
+                    piece_color,
+                    ret,
+                    (pos, piece),
+                    checks_n_pins,
+                    [(0, 1), (0, -1)]
+                );
             }
         }
     }
@@ -676,14 +748,22 @@ impl GameState {
         piece: Colored<Piece>,
         length: i8,
         ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) {
         for i in to_range(length) {
             if i == 0 {
                 continue;
             }
             if let Some(pos_n) = pos.add_row_and_column(i, 0) {
-                check_insert!(self, pos_n, piece_color, ret, (pos, piece), check_pins);
+                check_insert!(
+                    self,
+                    pos_n,
+                    piece_color,
+                    ret,
+                    (pos, piece),
+                    checks_n_pins,
+                    [(1, 0), (-1, 0)]
+                );
             }
         }
     }
@@ -695,14 +775,22 @@ impl GameState {
         piece: Colored<Piece>,
         length: i8,
         ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) {
         for i in to_range(length) {
             if i == 0 {
                 continue;
             }
             if let Some(pos_n) = pos.add_row_and_column(i, i) {
-                check_insert!(self, pos_n, piece_color, ret, (pos, piece), check_pins);
+                check_insert!(
+                    self,
+                    pos_n,
+                    piece_color,
+                    ret,
+                    (pos, piece),
+                    checks_n_pins,
+                    [(-1, 1), (1, -1)]
+                );
             }
         }
     }
@@ -714,14 +802,22 @@ impl GameState {
         piece: Colored<Piece>,
         length: i8,
         ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) {
         for i in to_range(length) {
             if i == 0 {
                 continue;
             }
             if let Some(pos_n) = pos.add_row_and_column(i, -i) {
-                check_insert!(self, pos_n, piece_color, ret, (pos, piece), check_pins);
+                check_insert!(
+                    self,
+                    pos_n,
+                    piece_color,
+                    ret,
+                    (pos, piece),
+                    checks_n_pins,
+                    [(1, 1), (-1, -1)]
+                );
             }
         }
     }
@@ -733,15 +829,15 @@ impl GameState {
         piece: Colored<Piece>,
         length: i8,
         ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) {
         // iterate over lower and upper each twice doing pos.add_row_column(x, 0) in the first iteration pos.add_row_column(0, x) in the second one
         // at eac check we need to check if a piece is there and see what color it is if its the same color as the current piece. then we dont add the pos to the hashset
         // otherwise we do in bothe cases where the is already a piece there we break from the loop
-        self.hoirz_half(pos, piece_color, piece, length, ret, check_pins);
-        self.vert_half(pos, piece_color, piece, length, ret, check_pins);
-        self.hoirz_half(pos, piece_color, piece, -length, ret, check_pins);
-        self.vert_half(pos, piece_color, piece, -length, ret, check_pins);
+        self.hoirz_half(pos, piece_color, piece, length, ret, checks_n_pins);
+        self.vert_half(pos, piece_color, piece, length, ret, checks_n_pins);
+        self.hoirz_half(pos, piece_color, piece, -length, ret, checks_n_pins);
+        self.vert_half(pos, piece_color, piece, -length, ret, checks_n_pins);
     }
 
     fn diag(
@@ -751,13 +847,13 @@ impl GameState {
         piece: Colored<Piece>,
         length: i8,
         ret: &mut HashSet<MoveType<Pos, Colored<Piece>>>,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) {
         // samme thing as horiz_and_vert but using pos.add_row_and_column(x, x) and pos.add_row_and_column(x, -x)
-        self.diag_left(pos, piece_color, piece, length, ret, check_pins);
-        self.diag_right(pos, piece_color, piece, length, ret, check_pins);
-        self.diag_left(pos, piece_color, piece, -length, ret, check_pins);
-        self.diag_right(pos, piece_color, piece, -length, ret, check_pins);
+        self.diag_left(pos, piece_color, piece, length, ret, checks_n_pins);
+        self.diag_right(pos, piece_color, piece, length, ret, checks_n_pins);
+        self.diag_left(pos, piece_color, piece, -length, ret, checks_n_pins);
+        self.diag_right(pos, piece_color, piece, -length, ret, checks_n_pins);
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -767,7 +863,7 @@ impl GameState {
     pub fn get_all_moves_pins(
         &mut self,
         player: Color,
-        check_pins: bool,
+        checks_n_pins: bool,
     ) -> HashSet<MoveType<Pos, Colored<Piece>>> {
         // gets all moves for a given color by iterating through the board and finding pieces of the color and generating the moves for that piece using self.get_piece_moves()
         self.board
@@ -781,7 +877,7 @@ impl GameState {
                         let cell = (*cell)?;
                         if Color::from(cell) == player {
                             let pos = Pos::new(row_idx as u8 + 1, column_idx as u8 + 1);
-                            let moves = self.get_piece_moves(pos, check_pins);
+                            let moves = self.get_piece_moves(pos, checks_n_pins);
                             if moves.is_empty() {
                                 None
                             } else {
@@ -968,12 +1064,17 @@ impl GameState {
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn new_all_valid_moves(&mut self, player: Color) -> HashSet<MoveType<Pos, Colored<Piece>>> {
         // find king pos
-        let king_pos = self.find_king(player).unwrap();
+        // really the king should always be on the board
+        let king_pos = match self.find_king(player) {
+            Some(pos) => pos,
+            None => return HashSet::new(),
+        };
+
         let (pins, checks, in_check) = self.pins_and_checks(king_pos, player);
         self.pins = pins;
         self.checks = checks.clone();
         self.in_check = in_check;
-        if in_check {
+        let ret = if in_check {
             if checks.len() == 1 {
                 let mut valid_poses = vec![];
                 // get all moves for player and check if any of the moves block the check
@@ -992,13 +1093,15 @@ impl GameState {
                     // if the piece checking the king is a knight then the only move that can be made is to capture the knight
                 } else {
                     for i in 1..8 {
-                        let pos = Pos::new(
-                            king_pos.row + check.1 .0 as u8 * i,
-                            king_pos.column + check.1 .1 as u8 * i,
-                        );
-                        valid_poses.push(pos);
-                        if pos == check.0 {
-                            break;
+                        // we have to do bounds checking
+                        let row = i32::from(king_pos.row) + check.1 .0 * i;
+                        let col = i32::from(king_pos.column) + check.1 .1 * i;
+                        if (1..=8).contains(&row) && (1..=8).contains(&col) {
+                            let pos = Pos::new(row as u8, col as u8);
+                            valid_poses.push(pos);
+                            if pos == check.0 {
+                                break;
+                            }
                         }
                     }
                 }
@@ -1027,7 +1130,31 @@ impl GameState {
         } else {
             // todo make get_all_moves have special cases for pinned and checking pieces
             self.get_all_moves_pins(player, true)
+        };
+        if ret.is_empty() {
+            // check if king is in check
+            if in_check {
+                // checkmate
+                self.result = GameResult::CheckMate(player);
+            } else {
+                // stalemate
+                self.result = GameResult::StaleMate;
+            }
+
+            // if king is in check then the game is over
+            // if king is not in check then the game is a draw
         }
+        let count = self
+            .board
+            .board
+            .iter()
+            .flat_map(|x| x.to_vec())
+            .filter(Option::is_some)
+            .count();
+        if count == 2 {
+            self.result = GameResult::Draw;
+        }
+        ret
     }
 
     // note this doesn not check for en passant pins that happens in get_piece_moves with check_for_pins = true
@@ -1066,6 +1193,10 @@ impl GameState {
                         let piece_type = Piece::from(*piece);
                         let piece_color = Color::from(*piece);
                         if piece_color == player {
+                            // this is for a gohst king
+                            if piece_type == Piece::King {
+                                continue;
+                            }
                             if possuble_pins.is_none() {
                                 possuble_pins = Some((piece_pos, *direction, *piece));
                             } else {
@@ -1611,6 +1742,7 @@ mod move_tests {
         // println!("{:?}", slmoves);
         let start = Instant::now();
         let moves = gamestate.get_all_valid_moves(Color::Black);
+        assert_eq!(moves, gamestate.new_all_valid_moves(Color::Black));
         let end = start.elapsed();
         println!(
             "{} legal moves generated in {:?}ms",
@@ -1782,7 +1914,23 @@ mod move_tests {
             GameState::from_str("2kr3r/ppp2p1p/1b4nQ/1P3b2/P7/2q2NBB/3N1P1P/R3K2R w KQ - 0 23")
                 .unwrap();
         let now = Instant::now();
+        println!("{}", game_state.board);
         let valid_moves = game_state.get_all_valid_moves(Color::Black);
+        println!("{}ms", now.elapsed().as_millis());
+        game_state
+            .new_all_valid_moves(Color::Black)
+            .difference(&valid_moves)
+            .for_each(|x| {
+                println!("dif {}", x);
+            });
+        println!("{}ms", now.elapsed().as_millis());
+        game_state
+            .new_all_valid_moves(Color::Black)
+            .difference(&valid_moves)
+            .for_each(|x| {
+                println!("dif {:?}", x);
+            });
+        assert_eq!(valid_moves, game_state.new_all_valid_moves(Color::Black));
 
         println!("{}ms", now.elapsed().as_millis());
         println!("{}", game_state.board);
@@ -1959,6 +2107,7 @@ mod move_tests {
                 .unwrap();
         println!("{}", game.board);
         let moves = game.get_all_valid_moves(Color::Black);
+        assert_eq!(moves, game.new_all_valid_moves(Color::Black));
         println!(
             "{:?}",
             moves
@@ -2045,6 +2194,7 @@ mod move_tests {
             GameState::from_str("rnbqkbnr/ppp2ppp/8/3pp3/2B1P3/7N/PPPP1PPP/RNBQK2R w KQkq - 0 4")
                 .unwrap();
         let moves = game.get_all_valid_moves(Color::White);
+        assert_eq!(moves, game.new_all_valid_moves(Color::White));
         println!("{}", game.board);
         println!(
             "{:?}",
