@@ -132,14 +132,17 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
     let mut ret = 0;
     match game.result {
         GameResult::CheckMate(c_color) => ret = if c_color == color { i32::MIN } else { i32::MAX },
-        GameResult::StaleMate | GameResult::Draw => ret = -50,
+        GameResult::StaleMate | GameResult::Draw => ret = 0,
         GameResult::InProgress => {
             for row in game.board.board {
                 for piece in row.into_iter().flatten() {
                     if Color::from(piece) == game.active_color {
                         // todo: use piece list and add point for being in certain positions
                         ret += get_piece_value(Piece::from(piece));
+                    } else {
+                        ret -= get_piece_value(Piece::from(piece));
                     }
+
                 }
             }
         }
