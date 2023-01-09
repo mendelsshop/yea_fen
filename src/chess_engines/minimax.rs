@@ -142,7 +142,6 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
                     } else {
                         ret -= get_piece_value(Piece::from(piece));
                     }
-
                 }
             }
         }
