@@ -135,21 +135,41 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
         GameResult::CheckMate(c_color) => ret = if c_color == color { i32::MIN } else { i32::MAX },
         GameResult::StaleMate | GameResult::Draw => ret = 0,
         GameResult::InProgress => {
+            let mut pieces = vec![];
             for (rowidx, row) in game.board.board.iter().enumerate() {
                 for (col, piece) in row
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, piece)| piece.map(|piece| (idx, piece)))
                 {
-                    if Color::from(piece) == game.active_color {
-                        // todo: use piece list and add point for being in certain positions
-                        ret += get_piece_value(Piece::from(piece))
-                            + eval_piece_pos(piece.into(), (rowidx, col), Color::from(piece));
-                    } else {
-                        // ret -= (get_piece_value(Piece::from(piece))+ eval_piece_pos(piece.into(), (rowidx, col),Color::from(piece) ));
-                        ret -= get_piece_value(Piece::from(piece))
-                            + eval_piece_pos(piece.into(), (rowidx, col), Color::from(piece));
-                    }
+                    // todo: use piece list and add point for being in certain positions
+                    pieces.push(((rowidx, col), piece));
+                }
+            }
+            // todo if pieces count is less than a certain number use end game piece tables
+            let eg = if pieces.len() < 8 {
+                true
+            } else {
+                false
+            };
+            for piece in pieces {
+                if Color::from(piece.1) == game.active_color {
+                    // todo: use piece list and add point for being in certain positions
+                    ret += get_piece_value(Piece::from(piece.1))
+                        + eval_piece_pos(
+                            piece.1.into(),
+                            (piece.0 .0, piece.0 .1),
+                            Color::from(piece.1),
+                            eg
+                        );
+                } else {
+                    ret -= get_piece_value(Piece::from(piece.1))
+                        + eval_piece_pos(
+                            piece.1.into(),
+                            (piece.0 .0, piece.0 .1),
+                            Color::from(piece.1),
+                            eg
+                        );
                 }
             }
         }
@@ -166,6 +186,18 @@ const MG_PAWN: [[i32; 8]; 8] = [
     [5, -5, -10, 0, 0, -10, -5, 5],
     [5, 10, 10, -20, -20, 10, 10, 5],
     [0, 0, 0, 0, 0, 0, 0, 0],
+];
+
+const EG_PAWN: [[i32; 8]; 8] = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [20, 20, 20, 20, 20, 20, 20, 20],
+    [25, 30, 25, 25, 25, 30, 25,25],
+    [30, 30,30,30,30,30,30,30],
+    [40, 40, 40, 40, 40, 40, 40, 40],
+    [50, 50, 50, 45, 45, 50, 50, 50],
+    [60, 60, 60, 55, 55, 60, 60, 60],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+
 ];
 
 const MG_KNIGHT: [[i32; 8]; 8] = [
@@ -225,48 +257,56 @@ const MG_KING: [[i32; 8]; 8] = [
     [20, 30, 10, 0, 0, 10, 30, 20],
 ];
 
-fn eval_piece_pos(piece: Piece, pos: (usize, usize), color: Color) -> i32 {
+const EG_KING: [[i32;8]; 8]  = [
+[-10, -10, -10, -10, -10, -10, -10, -10],
+[-10, 0, 0, 0, 0, 0, 0, -10],
+[-10, 0, 5, 10, 10, 5, 0, -10],
+[-10, 5, 5, 10, 10, 5, 5, -10],
+[-10, 0, 10, 10, 10, 10, 0, -10],
+[-10, 10, 10, 10, 10, 10, 10, -10],
+[-10, 5, 0, 0, 0, 0, 5, -10],
+[-20, -10, -10, -10, -10, -10, -10, -20],
+
+
+];
+
+macro_rules! piece_table {
+    ($pos:ident, $color:ident, $table:ident) => {
+        if $color == Color::White {
+            $table[$pos.0][$pos.1]
+        } else {
+            $table[7 - $pos.0][$pos.1]
+        }
+    };
+}
+
+fn eval_piece_pos(piece: Piece, pos: (usize, usize), color: Color, end_game: bool) -> i32 {
     match piece {
         Piece::Pawn => {
-            if color == Color::White {
-                MG_PAWN[pos.0][pos.1]
+            if end_game {
+                piece_table!(pos, color, EG_PAWN)
             } else {
-                MG_PAWN[7 - pos.0][pos.1]
+                piece_table!(pos, color, MG_PAWN)
             }
         }
         Piece::Knight => {
-            if color == Color::White {
-                MG_KNIGHT[pos.0][pos.1]
-            } else {
-                MG_KNIGHT[7 - pos.0][pos.1]
-            }
+            piece_table!(pos, color, MG_KNIGHT)
         }
         Piece::Bishop => {
-            if color == Color::White {
-                MG_BISHOP[pos.0][pos.1]
-            } else {
-                MG_BISHOP[7 - pos.0][pos.1]
-            }
+            piece_table!(pos, color, MG_BISHOP)
         }
         Piece::Rook => {
-            if color == Color::White {
-                MG_ROOK[pos.0][pos.1]
-            } else {
-                MG_ROOK[7 - pos.0][pos.1]
-            }
+            piece_table!(pos, color, MG_ROOK)
         }
         Piece::Queen => {
-            if color == Color::White {
-                MG_QUEEN[pos.0][pos.1]
-            } else {
-                MG_QUEEN[7 - pos.0][pos.1]
-            }
+            piece_table!(pos, color, MG_QUEEN)
         }
         Piece::King => {
-            if color == Color::White {
-                MG_KING[pos.0][pos.1]
+            // piece_table!(pos, color, MG_KING)
+            if end_game {
+                piece_table!(pos, color, EG_KING)
             } else {
-                MG_KING[7 - pos.0][pos.1]
+                piece_table!(pos, color, MG_KING)
             }
         }
     }
