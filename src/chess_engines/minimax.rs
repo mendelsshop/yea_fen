@@ -118,12 +118,13 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
 }
 
 const fn get_piece_value(piece: Piece) -> i32 {
+    // the values are high so as when we do piece postion bonus ultimatly what pieces you have should have the most effect on the eval
     match piece {
-        Piece::Pawn => 1,
-        Piece::Knight | Piece::Bishop => 3,
-        Piece::Rook => 5,
-        Piece::Queen => 9,
-        Piece::King => 100,
+        Piece::Pawn => 100,
+        Piece::Knight | Piece::Bishop => 300,
+        Piece::Rook => 500,
+        Piece::Queen => 900,
+        Piece::King => 10000,
     }
 }
 
@@ -134,13 +135,20 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
         GameResult::CheckMate(c_color) => ret = if c_color == color { i32::MIN } else { i32::MAX },
         GameResult::StaleMate | GameResult::Draw => ret = 0,
         GameResult::InProgress => {
-            for row in game.board.board {
-                for piece in row.into_iter().flatten() {
+            for (rowidx, row) in game.board.board.iter().enumerate() {
+                for (col, piece) in row
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, piece)| piece.map(|piece| (idx, piece)))
+                {
                     if Color::from(piece) == game.active_color {
                         // todo: use piece list and add point for being in certain positions
-                        ret += get_piece_value(Piece::from(piece));
+                        ret += get_piece_value(Piece::from(piece))
+                            + eval_piece_pos(piece.into(), (rowidx, col), Color::from(piece));
                     } else {
-                        ret -= get_piece_value(Piece::from(piece));
+                        // ret -= (get_piece_value(Piece::from(piece))+ eval_piece_pos(piece.into(), (rowidx, col),Color::from(piece) ));
+                        ret -= get_piece_value(Piece::from(piece))
+                            + eval_piece_pos(piece.into(), (rowidx, col), Color::from(piece));
                     }
                 }
             }
@@ -149,14 +157,150 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
 
     ret
 }
+const MG_PAWN: [[i32; 8]; 8] = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [50, 50, 50, 50, 50, 50, 50, 50],
+    [10, 10, 20, 30, 30, 20, 10, 10],
+    [5, 5, 10, 25, 25, 10, 5, 5],
+    [0, 0, 0, 20, 20, 0, 0, 0],
+    [5, -5, -10, 0, 0, -10, -5, 5],
+    [5, 10, 10, -20, -20, 10, 10, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+];
+
+const MG_KNIGHT: [[i32; 8]; 8] = [
+    [-50, -40, -30, -30, -30, -30, -40, -50],
+    [-40, -20, 0, 0, 0, 0, -20, -40],
+    [-30, 0, 10, 15, 15, 10, 0, -30],
+    [-30, 5, 15, 20, 20, 15, 5, -30],
+    [-30, 0, 15, 20, 20, 15, 0, -30],
+    [-30, 5, 10, 15, 15, 10, 5, -30],
+    [-40, -20, 0, 5, 5, 0, -20, -40],
+    [-50, -40, -30, -30, -30, -30, -40, -50],
+];
+
+const MG_BISHOP: [[i32; 8]; 8] = [
+    [-20, -10, -10, -10, -10, -10, -10, -20],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-10, 0, 5, 10, 10, 5, 0, -10],
+    [-10, 5, 5, 10, 10, 5, 5, -10],
+    [-10, 0, 10, 10, 10, 10, 0, -10],
+    [-10, 10, 10, 10, 10, 10, 10, -10],
+    [-10, 5, 0, 0, 0, 0, 5, -10],
+    [-20, -10, -10, -10, -10, -10, -10, -20],
+];
+
+const MG_ROOK: [[i32; 8]; 8] = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [5, 10, 10, 10, 10, 10, 10, 5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [0, 0, 0, 5, 5, 0, 0, 0],
+];
+
+// make queen mid game table
+const MG_QUEEN: [[i32; 8]; 8] = [
+    [-20, -10, -10, -5, -5, -10, -10, -20],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-10, 0, 5, 5, 5, 5, 0, -10],
+    [-5, 0, 5, 5, 5, 5, 0, -5],
+    [0, 0, 5, 5, 5, 5, 0, -5],
+    [-10, 5, 5, 5, 5, 5, 0, -10],
+    [-10, 0, 5, 0, 0, 0, 0, -10],
+    [-20, -10, -10, -5, -5, -10, -10, -20],
+];
+
+// king table
+const MG_KING: [[i32; 8]; 8] = [
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-20, -30, -30, -40, -40, -30, -30, -20],
+    [-10, -20, -20, -20, -20, -20, -20, -10],
+    [20, 20, 0, 0, 0, 0, 20, 20],
+    [20, 30, 10, 0, 0, 10, 30, 20],
+];
+
+fn eval_piece_pos(piece: Piece, pos: (usize, usize), color: Color) -> i32 {
+    match piece {
+        Piece::Pawn => {
+            if color == Color::White {
+                MG_PAWN[pos.0][pos.1]
+            } else {
+                MG_PAWN[7 - pos.0][pos.1]
+            }
+        }
+        Piece::Knight => {
+            if color == Color::White {
+                MG_KNIGHT[pos.0][pos.1]
+            } else {
+                MG_KNIGHT[7 - pos.0][pos.1]
+            }
+        }
+        Piece::Bishop => {
+            if color == Color::White {
+                MG_BISHOP[pos.0][pos.1]
+            } else {
+                MG_BISHOP[7 - pos.0][pos.1]
+            }
+        }
+        Piece::Rook => {
+            if color == Color::White {
+                MG_ROOK[pos.0][pos.1]
+            } else {
+                MG_ROOK[7 - pos.0][pos.1]
+            }
+        }
+        Piece::Queen => {
+            if color == Color::White {
+                MG_QUEEN[pos.0][pos.1]
+            } else {
+                MG_QUEEN[7 - pos.0][pos.1]
+            }
+        }
+        Piece::King => {
+            if color == Color::White {
+                MG_KING[pos.0][pos.1]
+            } else {
+                MG_KING[7 - pos.0][pos.1]
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
     // use std::time::Instant;
 
+    use std::str::FromStr;
+
     use super::*;
     use crate::{chess_engines::random::do_random_move, GameState};
 
+    #[test]
+    fn test_eval() {
+        let mut state = GameState::from_str(
+            "r1bqkbnr/pppp1Qp1/2n4p/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4",
+        )
+        .unwrap();
+        let mut state1 =
+            GameState::from_str("r4k1b/ppp5/6K1/3B4/8/4P3/PPpP2P1/RNB5 w - - 0 23").unwrap();
+        let mut state2 = GameState::from_str("6kr/1p4p1/8/3n3p/rP6/3b4/1K6/8 b - - 1 40").unwrap();
+
+        println!("s1b {}", eval_board(&state, Color::Black));
+        state.active_color = Color::White;
+        println!("s1w {}", eval_board(&state, Color::White));
+        println!("s2w {}", eval_board(&state1, Color::White));
+        state1.active_color = Color::Black;
+        println!("s2b {}", eval_board(&state1, Color::Black));
+        println!("s3b {}", eval_board(&state2, Color::Black));
+        state2.active_color = Color::White;
+        println!("s3w {}", eval_board(&state2, Color::White));
+    }
     #[test]
     fn min_max() {
         let mut game = GameState::new();

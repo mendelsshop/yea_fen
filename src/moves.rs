@@ -236,37 +236,37 @@ macro_rules! check_insert {
                     (_, (-2 | 2, -1 | 1) | (-1 | 1, -2 | 2)) => {
                         break;
                     }
-                    // pawns can potentially move in diagonal directions, or up or down
-                    (Piece::Pawn, (-1 | 1, 0 | -1 | 1)) => {
-                        // we have to check the piece color to see if the pawn is moving in the right direction
-                        match $piece_color {
-                            Color::White => {
-                                // if the piece is white, then it can only move up
-                                if pin.1.0 != -1 {
-                                    break;
-                                }
-                            }
-                            Color::Black => {
-                                // if the piece is black, then it can only move down
-                                if pin.1.0 != 1 {
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                    // // pawns can potentially move in diagonal directions, or up or down
+                    // (Piece::Pawn, (-1 | 1, 0 | -1 | 1)) => {
+                    //     // we have to check the piece color to see if the pawn is moving in the right direction
+                    //     match $piece_color {
+                    //         Color::White => {
+                    //             // if the piece is white, then it can only move up
+                    //             if pin.1.0 != 1 {
+                    //                 break;
+                    //             }
+                    //         }
+                    //         Color::Black => {
+                    //             // if the piece is black, then it can only move down
+                    //             if pin.1.0 != -1 {
+                    //                 break;
+                    //             }
+                    //         }
+                    //     }
+                    // }
                     // if the pin direction is one of a bishop, then the piece can only move in that direction if it is a bishop or a queen
                     (_, (-1 | 1, -1 | 1)) => {
-                        if !matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen){
+                        if !matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen | Piece::Pawn) {
                             break;
-                        } else if $dir.contains(&pin.1) && matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen) {
+                        } else if !$dir.contains(&pin.1) && matches!(Piece::from($origin.1), Piece::Bishop | Piece::Queen | Piece::Pawn) {
                             break;
                         }
                     }
                     // if the pin direction is one of a rook, then the piece can only move in that direction if it is a rook or a queen
                     (_, (-1 | 1, 0) | (0, -1 | 1)) => {
-                        if !matches!(Piece::from($origin.1), Piece::Rook | Piece::Queen) {
+                        if !matches!(Piece::from($origin.1), Piece::Rook | Piece::Queen | Piece::Pawn) {
                             break;
-                        } else if $dir.contains(&pin.1) && matches!(Piece::from($origin.1), Piece::Rook | Piece::Queen) {
+                        } else if !$dir.contains(&pin.1) && matches!(Piece::from($origin.1), Piece::Rook | Piece::Queen | Piece::Pawn) {
                             break;
                         }
                     }
@@ -628,8 +628,7 @@ impl GameState {
                             } = last_move.move_type
                             {
                                 if color == Color::from(piece_n)
-                                    || (Piece::from(piece_n)!= Piece::Pawn
-                                     )
+                                    || (Piece::from(piece_n) != Piece::Pawn)
                                     || (origin.row.max(new.row) - origin.row.min(new.row) != 2)
                                 {
                                     return None;
@@ -789,7 +788,8 @@ impl GameState {
                     ret,
                     (pos, piece),
                     checks_n_pins,
-                    [(-1, 1), (1, -1)]
+                    // [(-1, 1), (1, -1)]
+                    [(1, 1), (-1, -1)]
                 );
             }
         }
@@ -816,7 +816,8 @@ impl GameState {
                     ret,
                     (pos, piece),
                     checks_n_pins,
-                    [(1, 1), (-1, -1)]
+                    // [(1, 1), (-1, -1)]
+                    [(-1, 1), (1, -1)]
                 );
             }
         }
@@ -1742,7 +1743,7 @@ mod move_tests {
         // println!("{:?}", slmoves);
         let start = Instant::now();
         let moves = gamestate.get_all_valid_moves(Color::Black);
-        assert_eq!(moves, gamestate.new_all_valid_moves(Color::Black));
+
         let end = start.elapsed();
         println!(
             "{} legal moves generated in {:?}ms",
@@ -1753,11 +1754,15 @@ mod move_tests {
         let start = Instant::now();
         let newmoves = gamestate.new_all_valid_moves(Color::Black);
         let end = start.elapsed();
+        newmoves.difference(&moves).for_each(|x| println!("{}", x));
+        println!();
+        moves.difference(&newmoves).for_each(|x| println!("{}", x));
         println!(
             "{} new legal moves generated in {:?}ms",
-            moves.len(),
+            newmoves.len(),
             end.as_micros()
         );
+        assert_eq!(moves, gamestate.new_all_valid_moves(Color::Black));
         println!("{:?}", newmoves);
         newmoves.difference(&moves).for_each(|x| println!("{}", x));
     }
