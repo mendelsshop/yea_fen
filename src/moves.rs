@@ -627,9 +627,9 @@ impl GameState {
                                 new,
                             } = last_move.move_type
                             {
-                                if (color == Color::from(piece_n)
-                                    && (piece_n == Colored::White(Piece::Pawn)
-                                        || piece_n == Colored::Black(Piece::Pawn)))
+                                if color == Color::from(piece_n)
+                                    || (Piece::from(piece_n)!= Piece::Pawn
+                                     )
                                     || (origin.row.max(new.row) - origin.row.min(new.row) != 2)
                                 {
                                     return None;
