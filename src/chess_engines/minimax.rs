@@ -147,11 +147,7 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
                 }
             }
             // todo if pieces count is less than a certain number use end game piece tables
-            let eg = if pieces.len() < 8 {
-                true
-            } else {
-                false
-            };
+            let eg = if pieces.len() < 8 { true } else { false };
             for piece in pieces {
                 if Color::from(piece.1) == game.active_color {
                     // todo: use piece list and add point for being in certain positions
@@ -160,7 +156,7 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
                             piece.1.into(),
                             (piece.0 .0, piece.0 .1),
                             Color::from(piece.1),
-                            eg
+                            eg,
                         );
                 } else {
                     ret -= get_piece_value(Piece::from(piece.1))
@@ -168,7 +164,7 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
                             piece.1.into(),
                             (piece.0 .0, piece.0 .1),
                             Color::from(piece.1),
-                            eg
+                            eg,
                         );
                 }
             }
@@ -191,13 +187,12 @@ const MG_PAWN: [[i32; 8]; 8] = [
 const EG_PAWN: [[i32; 8]; 8] = [
     [0, 0, 0, 0, 0, 0, 0, 0],
     [20, 20, 20, 20, 20, 20, 20, 20],
-    [25, 30, 25, 25, 25, 30, 25,25],
-    [30, 30,30,30,30,30,30,30],
+    [25, 30, 25, 25, 25, 30, 25, 25],
+    [30, 30, 30, 30, 30, 30, 30, 30],
     [40, 40, 40, 40, 40, 40, 40, 40],
     [50, 50, 50, 45, 45, 50, 50, 50],
     [60, 60, 60, 55, 55, 60, 60, 60],
     [0, 0, 0, 0, 0, 0, 0, 0],
-
 ];
 
 const MG_KNIGHT: [[i32; 8]; 8] = [
@@ -257,17 +252,15 @@ const MG_KING: [[i32; 8]; 8] = [
     [20, 30, 10, 0, 0, 10, 30, 20],
 ];
 
-const EG_KING: [[i32;8]; 8]  = [
-[-10, -10, -10, -10, -10, -10, -10, -10],
-[-10, 0, 0, 0, 0, 0, 0, -10],
-[-10, 0, 5, 10, 10, 5, 0, -10],
-[-10, 5, 5, 10, 10, 5, 5, -10],
-[-10, 0, 10, 10, 10, 10, 0, -10],
-[-10, 10, 10, 10, 10, 10, 10, -10],
-[-10, 5, 0, 0, 0, 0, 5, -10],
-[-20, -10, -10, -10, -10, -10, -10, -20],
-
-
+const EG_KING: [[i32; 8]; 8] = [
+    [-10, -10, -10, -10, -10, -10, -10, -10],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-10, 0, 5, 10, 10, 5, 0, -10],
+    [-10, 5, 5, 10, 10, 5, 5, -10],
+    [-10, 0, 10, 10, 10, 10, 0, -10],
+    [-10, 10, 10, 10, 10, 10, 10, -10],
+    [-10, 5, 0, 0, 0, 0, 5, -10],
+    [-20, -10, -10, -10, -10, -10, -10, -20],
 ];
 
 macro_rules! piece_table {
