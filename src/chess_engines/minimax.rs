@@ -53,6 +53,10 @@ pub fn minimax(
     };
 
     ret.map(|num| {
+        match num.1 {
+            MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => {}
+            _ => return (num.1, None),
+        }
         let promotion = match game.active_color {
             Color::Black => Colored::Black(Piece::Queen),
             Color::White => Colored::White(Piece::Queen),
