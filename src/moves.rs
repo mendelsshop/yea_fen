@@ -56,38 +56,22 @@ macro_rules! return_false {
 }
 
 impl MoveType<Pos, Colored<Piece>> {
-    pub fn from(&self, piece: (Pos, Option<Colored<Piece>>)) -> Option<Pos> {
+    pub fn is_from_pos(&self, piece: Pos) -> bool {
         // check if the piece is the piece that is doing the move
-        match self {
-            Self::Castle {
-                king_origin,
-                king,
-                king_new,
-                rook_origin,
-                rook,
-                rook_new,
-            } => {
-                if piece == (*king_origin, Some(*king)) {
-                    Some(*king_new)
-                } else if piece == (*rook_origin, Some(*rook)) {
-                    Some(*rook_new)
-                } else {
-                    None
-                }
-            }
-            Self::Capture { origin, .. }
-            | Self::Move { origin, .. }
-            | Self::CapturePromotion { origin, .. }
-            | Self::MovePromotion { origin, .. }
-            | Self::EnPassant { origin, .. } => {
-                if piece.0 == *origin {
-                    Some(piece.0)
-                } else {
-                    None
-                }
-            }
-            Self::Check => None,
-        }
+        self.from().0 == piece
+    }
+
+    pub fn is_from_piece(&self, piece: Colored<Piece>) -> bool {
+        // check if the piece is the piece that is doing the move
+        self.from().1 == piece
+    }
+
+    pub fn is_from(&self, piece: (Pos, Colored<Piece>)) -> bool {
+        self.from() == piece
+    }
+
+    pub fn is_to(&self, piece: Pos) -> bool {
+        self.to() == piece
     }
 
     pub fn color(&self) -> Color {
@@ -102,29 +86,30 @@ impl MoveType<Pos, Colored<Piece>> {
         }
     }
 
-    pub fn to(&self, piece: Option<Colored<Piece>>) -> Pos {
-        // if its a castle, then check if its a king or a rook and return the new position of the king or the rook
+    pub fn to(&self) -> Pos {
         match self {
-            Self::Castle {
-                king,
-                king_new,
-                rook,
-                rook_new,
-                ..
-            } => {
-                if piece == Some(*king) {
-                    *king_new
-                } else if piece == Some(*rook) {
-                    *rook_new
-                } else {
-                    *king_new
-                }
-            }
-            Self::Capture { new, .. }
+            Self::Castle { king_new: new, .. }
+            | Self::Capture { new, .. }
             | Self::Move { new, .. }
             | Self::CapturePromotion { new, .. }
             | Self::MovePromotion { new, .. }
             | Self::EnPassant { new, .. } => *new,
+            Self::Check => unreachable!(),
+        }
+    }
+
+    pub fn from(&self) -> (Pos, Colored<Piece>) {
+        match self {
+            Self::Castle {
+                king_origin: origin,
+                king: piece,
+                ..
+            }
+            | Self::Capture { origin, piece, .. }
+            | Self::Move { origin, piece, .. }
+            | Self::CapturePromotion { origin, piece, .. }
+            | Self::MovePromotion { origin, piece, .. }
+            | Self::EnPassant { origin, piece, .. } => (*origin, *piece),
             Self::Check => unreachable!(),
         }
     }
@@ -1116,8 +1101,7 @@ impl GameState {
                             | MoveType::EnPassant { piece, .. }
                             | MoveType::MovePromotion { piece, .. }
                             | MoveType::CapturePromotion { piece, .. } => {
-                                piece.is(&Piece::King)
-                                    || valid_poses.contains(&r#move.to(Some(piece)))
+                                piece.is(&Piece::King) || valid_poses.contains(&r#move.to())
                             }
                             MoveType::Castle { .. } => false,
                             MoveType::Check => todo!(),
