@@ -26,7 +26,10 @@ pub fn minimax(
             };
             if moves.len() == 1 {
                 let score = moves.iter().last().unwrap();
-                return Some((*score, Some(prom)));
+                if let MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } = score {
+                    return Some((*score, Some(prom)));
+                }
+                return Some((*score, None));
             }
 
             let mut pot_move = **pick_random(&moves.iter().collect())?;
