@@ -151,7 +151,10 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
                 }
             }
             // todo if pieces count is less than a certain number use end game piece tables
-            let eg = pieces.len() < 8;
+            let eg = pieces.len() < 13;
+            // pawn count
+            ret += pieces.iter().filter(|piece| Color::from(piece.1) == color && Piece::from(piece.1) == Piece::Pawn).count() as i32 *2;
+            // ret -= pieces.iter().filter(|piece| Color::from(piece.1) != color && Piece::from(piece.1) == Piece::Pawn).count() as i32 *2;
             for piece in pieces {
                 if Color::from(piece.1) == game.active_color {
                     // todo: use piece list and add point for being in certain positions
