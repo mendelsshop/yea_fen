@@ -41,7 +41,7 @@ pub fn minimax(
                 };
 
                 new_game.do_move(*r#move, Some(prom));
-                let score = min(&mut new_game, depth - 1, alpha, beta, color);
+                let score = min(&mut new_game, depth - 1, alpha, beta, color, i32::MAX);
                 if score >= beta {
                     new_game.undo_move();
                     break Some((beta, *r#move));
@@ -72,9 +72,9 @@ pub fn do_minimax(game: &mut GameState, depth: usize) -> bool {
     minimax(game, depth).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
-fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Color) -> i32 {
+fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Color, mate: i32) -> i32 {
     if depth == 0 {
-        return eval_board(game, color);
+        return tapered_eval_board(game, color, mate);
     }
     let prom = match game.active_color {
         Color::Black => Colored::Black(Piece::Queen),
@@ -83,7 +83,7 @@ fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Col
     let moves = game.new_all_valid_moves(game.active_color);
     for r#move in &moves {
         if game.do_move(*r#move, Some(prom)) {
-            let score = min(game, depth - 1, alpha, beta, color);
+            let score = min(game, depth - 1, alpha, beta, color, mate - 1);
             if score >= beta {
                 game.undo_move();
                 return beta;
@@ -98,9 +98,9 @@ fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Col
     alpha
 }
 
-fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Color) -> i32 {
+fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Color, mate: i32) -> i32 {
     if depth == 0 {
-        let score = eval_board(game, color);
+        let score = tapered_eval_board(game, color, mate);
         return -score;
     }
     let prom = match game.active_color {
@@ -110,7 +110,7 @@ fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Col
     let moves = game.new_all_valid_moves(game.active_color);
     for r#move in &moves {
         if game.do_move(*r#move, Some(prom)) {
-            let score = max(game, depth - 1, alpha, beta, color);
+            let score = max(game, depth - 1, alpha, beta, color, mate - 1);
             if score <= alpha {
                 game.undo_move();
                 return alpha;
@@ -135,13 +135,15 @@ const fn get_piece_value(piece: Piece) -> i32 {
     }
 }
 
-fn eval_board(game: &GameState, color: Color) -> i32 {
+fn eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
     // evalutes the board based on how many pieces we have and their value
     let mut ret = 0;
     match game.result {
-        GameResult::CheckMate(c_color) => ret = if c_color == color { i32::MIN } else { i32::MAX },
-        GameResult::StaleMate | GameResult::Draw => ret = 0,
-        GameResult::InProgress => {
+        GameResult::CheckMate(c_color) => ret = if c_color == color { -mate } else { mate },
+        // GameResult::CheckMate(c_color) => ret = 0,
+        GameResult::StaleMate | GameResult::Draw | GameResult::InProgress => {
+            // first check if we have piece repetition
+
             let mut pieces = vec![];
             for (rowidx, row) in game.board.board.iter().enumerate() {
                 for (col, piece) in row
@@ -184,6 +186,154 @@ fn eval_board(game: &GameState, color: Color) -> i32 {
                         );
                 }
             }
+        
+                if let GameResult::StaleMate | GameResult::Draw = game.result {
+            // if we have a stalemate or draw we to see if we have an advantage
+            // if we have an advantage we can still win so we should return around 0
+            // if we have a big disadvantage we should return a big number so we do pick that move
+            // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
+            
+            if ret.is_negative() {
+                // we have a disadvantage
+                if ret.abs() > 1000 {
+                    // we have a big disadvantage
+                    ret = ret.abs() / 2;
+                } else {
+                    // we have a small disadvantage
+                    ret = ret.abs() / 4;
+                }
+            } else {
+                ret = 0;
+            }
+        }
+        }
+    }
+
+    ret
+}
+
+
+fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
+    // evalutes the board based on how many pieces we have and their value
+    let mut ret = 0;
+    match game.result {
+        GameResult::CheckMate(c_color) => ret = if c_color == color { -mate } else { mate },
+        // GameResult::CheckMate(c_color) => ret = 0,
+        GameResult::StaleMate | GameResult::Draw | GameResult::InProgress => {
+            // first check if we have piece repetition
+
+            let mut pieces = vec![];
+            for (rowidx, row) in game.board.board.iter().enumerate() {
+                for (col, piece) in row
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, piece)| piece.map(|piece| (idx, piece)))
+                {
+                    // todo: use piece list and add point for being in certain positions
+                    pieces.push(((rowidx, col), piece));
+                }
+            }
+            // todo if pieces count is less than a certain number use end game piece tables
+            // let eg = pieces.len() < 13;
+            let mut eg = 0;
+            let mut mg = 0;
+            let pawn_phase = 0;
+            let knight_phase = 1;
+            let bishop_phase = 1;
+            let rook_phase = 2;
+            let queen_phase = 4;
+    
+            let total_phase = pawn_phase * 16 + knight_phase * 4 + bishop_phase * 4 + rook_phase * 4 + queen_phase * 2;
+    
+            let mut phase = total_phase;
+    
+            // let mut pawn_count = 0;
+            // let mut knight_count = 0;
+            // let mut bishop_count = 0;
+            // let mut rook_count = 0;
+            // let mut queen_count = 0;
+            // pawn count
+            ret += pieces
+                .iter()
+                .filter(|piece| {
+                    Color::from(piece.1) == color && Piece::from(piece.1) == Piece::Pawn
+                })
+                .count() as i32
+                * 2;
+            // ret -= pieces.iter().filter(|piece| Color::from(piece.1) != color && Piece::from(piece.1) == Piece::Pawn).count() as i32 *2;
+            for piece in pieces {
+                match Piece::from(piece.1) {
+                    Piece::Pawn => {
+                        // pawn_count += 1;
+                        phase -= pawn_phase;
+                    }
+                    Piece::Knight => {
+                        // knight_count += 1;
+                        phase -= knight_phase;
+                    }
+                    Piece::Bishop => {
+                        // bishop_count += 1;
+                        phase -= bishop_phase;
+                    }
+                    Piece::Rook => {
+                        // rook_count += 1;
+                        phase -= rook_phase;
+                    }
+                    Piece::Queen => {
+                        // queen_count += 1;
+                        phase -= queen_phase;
+                    }
+                    _ => {}
+                }
+                if Color::from(piece.1) == game.active_color {
+                    // todo: use piece list and add point for being in certain positions
+                    eg += get_piece_value(Piece::from(piece.1))
+                        + eval_piece_pos(
+                            piece.1.into(),
+                            (piece.0 .0, piece.0 .1),
+                            Color::from(piece.1),
+                            true,
+                        );
+                    mg += get_piece_value(Piece::from(piece.1))
+                        + eval_piece_pos(
+                            piece.1.into(),
+                            (piece.0 .0, piece.0 .1),
+                            Color::from(piece.1),
+                            false,
+                        );
+                } else {
+                    eg -= get_piece_value(Piece::from(piece.1))
+                        + eval_piece_pos(
+                            piece.1.into(),
+                            (piece.0 .0, piece.0 .1),
+                            Color::from(piece.1),
+                            true,
+                        );
+                    mg -= get_piece_value(Piece::from(piece.1))
+                }
+            }
+            phase = (phase * 256 + (total_phase / 2)) / total_phase;
+            ret += ((mg * (256 - phase)) + eg * phase) / 256;
+        
+                if let GameResult::StaleMate | GameResult::Draw = game.result {
+            // if we have a stalemate or draw we to see if we have an advantage
+            // if we have an advantage we can still win so we should return around 0
+            // if we have a big disadvantage we should return a big number so we do pick that move
+            // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
+            
+            if ret.is_negative() {
+                // we have a disadvantage
+                if ret.abs() > 1000 {
+                    // we have a big disadvantage
+                    ret = ret.abs() / 2;
+                } else {
+                    // we have a small disadvantage
+                    ret = ret.abs() / 4;
+                }
+            } else {
+                ret = 0;
+            }
+        }
         }
     }
 
@@ -328,7 +478,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::{chess_engines::random::do_random_move, GameState};
+    use crate::{chess_engines::random::do_random_move, GameState, Board};
 
     #[test]
     fn test_eval() {
@@ -340,15 +490,23 @@ mod tests {
             GameState::from_str("r4k1b/ppp5/6K1/3B4/8/4P3/PPpP2P1/RNB5 w - - 0 23").unwrap();
         let mut state2 = GameState::from_str("6kr/1p4p1/8/3n3p/rP6/3b4/1K6/8 b - - 1 40").unwrap();
 
-        println!("s1b {}", eval_board(&state, Color::Black));
+        println!("s1b {}", eval_board(&state, Color::Black, i32::MAX));
+        println!("ts1b {}", tapered_eval_board(&state, Color::Black, i32::MAX));
         state.active_color = Color::White;
-        println!("s1w {}", eval_board(&state, Color::White));
-        println!("s2w {}", eval_board(&state1, Color::White));
+        println!("s1w {}", eval_board(&state, Color::White, i32::MAX));
+        // use taperd eval
+        println!("ts1w {}", tapered_eval_board(&state, Color::White, i32::MAX));
+        
+        println!("s2w {}", eval_board(&state1, Color::White, i32::MAX));
+        println!("ts2w {}", tapered_eval_board(&state1, Color::White, i32::MAX));
         state1.active_color = Color::Black;
-        println!("s2b {}", eval_board(&state1, Color::Black));
-        println!("s3b {}", eval_board(&state2, Color::Black));
+        println!("s2b {}", eval_board(&state1, Color::Black, i32::MAX));
+        println!("ts2b {}", tapered_eval_board(&state1, Color::Black, i32::MAX));
+        println!("s3b {}", eval_board(&state2, Color::Black, i32::MAX));
+        println!("ts3b {}", tapered_eval_board(&state2, Color::Black, i32::MAX));
         state2.active_color = Color::White;
-        println!("s3w {}", eval_board(&state2, Color::White));
+        println!("s3w {}", eval_board(&state2, Color::White, i32::MAX));
+        println!("ts3w {}", tapered_eval_board(&state2, Color::White, i32::MAX));
     }
     #[test]
     fn min_max() {
@@ -381,5 +539,71 @@ mod tests {
         }
         println!("game over");
         println!("{:?}", game.result);
+    }
+
+    #[test]
+    fn tapered() {
+        let board  = Board::from_str("rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR").unwrap();
+
+        let pawn_phase = 0;
+        let knight_phase = 1;
+        let bishop_phase = 1;
+        let rook_phase = 2;
+        let queen_phase = 4;
+
+        let total_phase = pawn_phase * 16 + knight_phase * 4 + bishop_phase * 4 + rook_phase * 4 + queen_phase * 2;
+
+        let mut phase = total_phase;
+
+        let mut pawn_count = 0;
+        let mut knight_count = 0;
+        let mut bishop_count = 0;
+        let mut rook_count = 0;
+        let mut queen_count = 0;
+
+        for row in board.board {
+            for piece in row { 
+            match piece {
+                Some(piece) => {
+                    match Piece::from(piece) {
+                        Piece::Pawn => {
+                            pawn_count += 1;
+                        }
+                        Piece::Knight => {
+                            knight_count += 1;
+                        }
+                        Piece::Bishop => {
+                            bishop_count += 1;
+                        }
+                        Piece::Rook => {
+                            rook_count += 1;
+                        }
+                        Piece::Queen => {
+                            queen_count += 1;
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        }
+        println!("pawn {}", pawn_count);
+        println!("knight {}", knight_count);
+        println!("bishop {}", bishop_count);
+        println!("rook {}", rook_count);
+        println!("queen {}", queen_count);
+
+        
+
+        phase -= pawn_phase * pawn_count;
+        phase -= knight_phase * knight_count;
+        phase -= bishop_phase * bishop_count;
+        phase -= rook_phase * rook_count;
+        phase -= queen_phase * queen_count;
+        println!("{}", phase);
+        phase = (phase * 256 + (total_phase / 2)) / total_phase;
+        println!("{}", phase);
+        println!("{}", total_phase);
     }
 }
