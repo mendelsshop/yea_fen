@@ -72,7 +72,14 @@ pub fn do_minimax(game: &mut GameState, depth: usize) -> bool {
     minimax(game, depth).map_or(false, |r#move| game.do_move(r#move.0, r#move.1))
 }
 
-fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Color, mate: i32) -> i32 {
+fn max(
+    game: &mut GameState,
+    depth: usize,
+    mut alpha: i32,
+    beta: i32,
+    color: Color,
+    mate: i32,
+) -> i32 {
     if depth == 0 {
         return tapered_eval_board(game, color, mate);
     }
@@ -98,7 +105,14 @@ fn max(game: &mut GameState, depth: usize, mut alpha: i32, beta: i32, color: Col
     alpha
 }
 
-fn min(game: &mut GameState, depth: usize, alpha: i32, mut beta: i32, color: Color, mate: i32) -> i32 {
+fn min(
+    game: &mut GameState,
+    depth: usize,
+    alpha: i32,
+    mut beta: i32,
+    color: Color,
+    mate: i32,
+) -> i32 {
     if depth == 0 {
         let score = tapered_eval_board(game, color, mate);
         return -score;
@@ -186,32 +200,31 @@ fn eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
                         );
                 }
             }
-        
-                if let GameResult::StaleMate | GameResult::Draw = game.result {
-            // if we have a stalemate or draw we to see if we have an advantage
-            // if we have an advantage we can still win so we should return around 0
-            // if we have a big disadvantage we should return a big number so we do pick that move
-            // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
-            
-            if ret.is_negative() {
-                // we have a disadvantage
-                if ret.abs() > 1000 {
-                    // we have a big disadvantage
-                    ret = ret.abs() / 2;
+
+            if let GameResult::StaleMate | GameResult::Draw = game.result {
+                // if we have a stalemate or draw we to see if we have an advantage
+                // if we have an advantage we can still win so we should return around 0
+                // if we have a big disadvantage we should return a big number so we do pick that move
+                // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
+
+                if ret.is_negative() {
+                    // we have a disadvantage
+                    if ret.abs() > 1000 {
+                        // we have a big disadvantage
+                        ret = ret.abs() / 2;
+                    } else {
+                        // we have a small disadvantage
+                        ret = ret.abs() / 4;
+                    }
                 } else {
-                    // we have a small disadvantage
-                    ret = ret.abs() / 4;
+                    ret = 0;
                 }
-            } else {
-                ret = 0;
             }
-        }
         }
     }
 
     ret
 }
-
 
 fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
     // evalutes the board based on how many pieces we have and their value
@@ -242,11 +255,15 @@ fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
             let bishop_phase = 1;
             let rook_phase = 2;
             let queen_phase = 4;
-    
-            let total_phase = pawn_phase * 16 + knight_phase * 4 + bishop_phase * 4 + rook_phase * 4 + queen_phase * 2;
-    
+
+            let total_phase = pawn_phase * 16
+                + knight_phase * 4
+                + bishop_phase * 4
+                + rook_phase * 4
+                + queen_phase * 2;
+
             let mut phase = total_phase;
-    
+
             // let mut pawn_count = 0;
             // let mut knight_count = 0;
             // let mut bishop_count = 0;
@@ -314,26 +331,26 @@ fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
             }
             phase = (phase * 256 + (total_phase / 2)) / total_phase;
             ret += ((mg * (256 - phase)) + eg * phase) / 256;
-        
-                if let GameResult::StaleMate | GameResult::Draw = game.result {
-            // if we have a stalemate or draw we to see if we have an advantage
-            // if we have an advantage we can still win so we should return around 0
-            // if we have a big disadvantage we should return a big number so we do pick that move
-            // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
-            
-            if ret.is_negative() {
-                // we have a disadvantage
-                if ret.abs() > 1000 {
-                    // we have a big disadvantage
-                    ret = ret.abs() / 2;
+
+            if let GameResult::StaleMate | GameResult::Draw = game.result {
+                // if we have a stalemate or draw we to see if we have an advantage
+                // if we have an advantage we can still win so we should return around 0
+                // if we have a big disadvantage we should return a big number so we do pick that move
+                // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
+
+                if ret.is_negative() {
+                    // we have a disadvantage
+                    if ret.abs() > 1000 {
+                        // we have a big disadvantage
+                        ret = ret.abs() / 2;
+                    } else {
+                        // we have a small disadvantage
+                        ret = ret.abs() / 4;
+                    }
                 } else {
-                    // we have a small disadvantage
-                    ret = ret.abs() / 4;
+                    ret = 0;
                 }
-            } else {
-                ret = 0;
             }
-        }
         }
     }
 
@@ -478,7 +495,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::{chess_engines::random::do_random_move, GameState, Board};
+    use crate::{chess_engines::random::do_random_move, Board, GameState};
 
     #[test]
     fn test_eval() {
@@ -491,22 +508,40 @@ mod tests {
         let mut state2 = GameState::from_str("6kr/1p4p1/8/3n3p/rP6/3b4/1K6/8 b - - 1 40").unwrap();
 
         println!("s1b {}", eval_board(&state, Color::Black, i32::MAX));
-        println!("ts1b {}", tapered_eval_board(&state, Color::Black, i32::MAX));
+        println!(
+            "ts1b {}",
+            tapered_eval_board(&state, Color::Black, i32::MAX)
+        );
         state.active_color = Color::White;
         println!("s1w {}", eval_board(&state, Color::White, i32::MAX));
         // use taperd eval
-        println!("ts1w {}", tapered_eval_board(&state, Color::White, i32::MAX));
-        
+        println!(
+            "ts1w {}",
+            tapered_eval_board(&state, Color::White, i32::MAX)
+        );
+
         println!("s2w {}", eval_board(&state1, Color::White, i32::MAX));
-        println!("ts2w {}", tapered_eval_board(&state1, Color::White, i32::MAX));
+        println!(
+            "ts2w {}",
+            tapered_eval_board(&state1, Color::White, i32::MAX)
+        );
         state1.active_color = Color::Black;
         println!("s2b {}", eval_board(&state1, Color::Black, i32::MAX));
-        println!("ts2b {}", tapered_eval_board(&state1, Color::Black, i32::MAX));
+        println!(
+            "ts2b {}",
+            tapered_eval_board(&state1, Color::Black, i32::MAX)
+        );
         println!("s3b {}", eval_board(&state2, Color::Black, i32::MAX));
-        println!("ts3b {}", tapered_eval_board(&state2, Color::Black, i32::MAX));
+        println!(
+            "ts3b {}",
+            tapered_eval_board(&state2, Color::Black, i32::MAX)
+        );
         state2.active_color = Color::White;
         println!("s3w {}", eval_board(&state2, Color::White, i32::MAX));
-        println!("ts3w {}", tapered_eval_board(&state2, Color::White, i32::MAX));
+        println!(
+            "ts3w {}",
+            tapered_eval_board(&state2, Color::White, i32::MAX)
+        );
     }
     #[test]
     fn min_max() {
@@ -543,7 +578,7 @@ mod tests {
 
     #[test]
     fn tapered() {
-        let board  = Board::from_str("rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR").unwrap();
+        let board = Board::from_str("rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR").unwrap();
 
         let pawn_phase = 0;
         let knight_phase = 1;
@@ -551,7 +586,11 @@ mod tests {
         let rook_phase = 2;
         let queen_phase = 4;
 
-        let total_phase = pawn_phase * 16 + knight_phase * 4 + bishop_phase * 4 + rook_phase * 4 + queen_phase * 2;
+        let total_phase = pawn_phase * 16
+            + knight_phase * 4
+            + bishop_phase * 4
+            + rook_phase * 4
+            + queen_phase * 2;
 
         let mut phase = total_phase;
 
@@ -562,10 +601,9 @@ mod tests {
         let mut queen_count = 0;
 
         for row in board.board {
-            for piece in row { 
-            match piece {
-                Some(piece) => {
-                    match Piece::from(piece) {
+            for piece in row {
+                match piece {
+                    Some(piece) => match Piece::from(piece) {
                         Piece::Pawn => {
                             pawn_count += 1;
                         }
@@ -582,19 +620,16 @@ mod tests {
                             queen_count += 1;
                         }
                         _ => {}
-                    }
+                    },
+                    _ => {}
                 }
-                _ => {}
             }
-        }
         }
         println!("pawn {}", pawn_count);
         println!("knight {}", knight_count);
         println!("bishop {}", bishop_count);
         println!("rook {}", rook_count);
         println!("queen {}", queen_count);
-
-        
 
         phase -= pawn_phase * pawn_count;
         phase -= knight_phase * knight_count;

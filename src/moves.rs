@@ -2112,7 +2112,8 @@ mod move_tests {
             }),
             false
         );
-        let mut game1  = GameState::from_str("6k1/5pp1/4p2p/7P/P1p1RPP1/8/r7/3r3K w - - 18 35").unwrap();
+        let mut game1 =
+            GameState::from_str("6k1/5pp1/4p2p/7P/P1p1RPP1/8/r7/3r3K w - - 18 35").unwrap();
         println!("{}", game1.board);
         let moves = game1.new_all_valid_moves(Color::White);
         println!(
