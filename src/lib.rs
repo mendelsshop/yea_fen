@@ -259,6 +259,17 @@ pub enum Color {
     Black,
     White,
 }
+
+impl Color {
+    /// Returns the opposite color
+    #[must_use]
+    pub const fn opposite(self) -> Self {
+        match self {
+            Self::Black => Self::White,
+            Self::White => Self::Black,
+        }
+    }
+}
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// Castling Options
 pub enum Castling {

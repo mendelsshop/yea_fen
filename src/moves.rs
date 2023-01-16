@@ -898,10 +898,7 @@ impl GameState {
             // do move
             // generate enemy moves
             // find any enemy moves where its a capture and the cell its capturing is allay king
-            let enemy_moves = self.get_all_moves(match player {
-                Color::White => Color::Black,
-                Color::Black => Color::White,
-            });
+            let enemy_moves = self.get_all_moves(player.opposite());
             if let MoveType::Castle {
                 king,
                 king_origin: pos_k,
@@ -931,10 +928,8 @@ impl GameState {
                             },
                         };
                         self.do_move(move_, None);
-                        let enemy_moves = self.get_all_moves(match player {
-                            Color::White => Color::Black,
-                            Color::Black => Color::White,
-                        });
+
+                        let enemy_moves = self.get_all_moves(player.opposite());
                         checks.push(in_check(&enemy_moves, player));
                         // move the king 1 to the left
                         let move_ = MoveType::Move {
@@ -946,10 +941,8 @@ impl GameState {
                             },
                         };
                         self.do_move(move_, None);
-                        let enemy_moves = self.get_all_moves(match player {
-                            Color::White => Color::Black,
-                            Color::Black => Color::White,
-                        });
+
+                        let enemy_moves = self.get_all_moves(player.opposite());
                         checks.push(in_check(&enemy_moves, player));
                         self.undo_move();
                         self.undo_move();
@@ -971,10 +964,8 @@ impl GameState {
                             },
                         };
                         self.do_move(move_, None);
-                        let enemy_moves = self.get_all_moves(match player {
-                            Color::White => Color::Black,
-                            Color::Black => Color::White,
-                        });
+
+                        let enemy_moves = self.get_all_moves(player.opposite());
                         checks.push(in_check(&enemy_moves, player));
                         let move_ = MoveType::Move {
                             origin: *pos_k,
@@ -985,10 +976,8 @@ impl GameState {
                             },
                         };
                         self.do_move(move_, None);
-                        let enemy_moves = self.get_all_moves(match player {
-                            Color::White => Color::Black,
-                            Color::Black => Color::White,
-                        });
+
+                        let enemy_moves = self.get_all_moves(player.opposite());
                         checks.push(in_check(&enemy_moves, player));
                         self.undo_move();
                         self.undo_move();
@@ -1002,21 +991,13 @@ impl GameState {
                 Color::White => self.do_move(*pos, Some(Colored::White(Piece::Queen))),
                 Color::Black => self.do_move(*pos, Some(Colored::Black(Piece::Queen))),
             };
-
-            let openent = match player {
-                Color::White => Color::Black,
-                Color::Black => Color::White,
-            };
-            let enemy_moves = self.get_all_moves(openent);
+            let enemy_moves = self.get_all_moves(player.opposite());
             self.undo_move();
             !in_check(&enemy_moves, player)
         });
         // it might not be the best place to check for checkmate and stalemate
         if ret.is_empty() {
-            let enemy_moves = self.get_all_moves(match player {
-                Color::White => Color::Black,
-                Color::Black => Color::White,
-            });
+            let enemy_moves = self.get_all_moves(player.opposite());
             // check if king is in check
             if in_check(&enemy_moves, player) {
                 // checkmate
@@ -1068,10 +1049,7 @@ impl GameState {
                 let moves = self.get_all_moves_pins(player, true);
                 if check.2
                     == Colored::new(
-                        match player {
-                            Color::White => Color::Black,
-                            Color::Black => Color::White,
-                        },
+                        player.opposite(),
                         Piece::Knight,
                     )
                 {
@@ -1098,11 +1076,12 @@ impl GameState {
                         match *r#move {
                             MoveType::Move { piece, .. }
                             | MoveType::Capture { piece, .. }
-                            | MoveType::EnPassant { piece, .. }
                             | MoveType::MovePromotion { piece, .. }
                             | MoveType::CapturePromotion { piece, .. } => {
                                 piece.is(&Piece::King) || valid_poses.contains(&r#move.to())
                             }
+                            MoveType::EnPassant { captured_pos, new, .. } => {
+                                check.0 == captured_pos ||valid_poses.contains(&new)},
                             MoveType::Castle { .. } => false,
                             MoveType::Check => todo!(),
                         }
@@ -1243,10 +1222,7 @@ impl GameState {
                 let piece_pos = Pos::new(row as u8, col as u8);
                 if let Some(Some(piece)) = self.board.get_cell(piece_pos) {
                     if &Colored::new(
-                        match player {
-                            Color::Black => Color::White,
-                            Color::White => Color::Black,
-                        },
+                        player.opposite(),
                         Piece::Knight,
                     ) == piece
                     {
@@ -1395,10 +1371,7 @@ impl GameState {
         if self.active_color == Color::Black {
             self.full_move_clock += 1;
         }
-        self.active_color = match self.active_color {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        };
+        self.active_color = self.active_color.opposite();
         true
     }
 
@@ -1479,10 +1452,7 @@ impl GameState {
             self.castling_moves = r#move.castling;
             self.full_move_clock = r#move.full_move_clock;
             self.half_move_clock = r#move.half_move_clock;
-            self.active_color = match self.active_color {
-                Color::White => Color::Black,
-                Color::Black => Color::White,
-            };
+            self.active_color = self.active_color.opposite();
             true
         } else {
             false
@@ -1724,7 +1694,6 @@ mod move_tests {
             slmoves.len(),
             end.as_micros()
         );
-        // println!("{:?}", slmoves);
         let start = Instant::now();
         let moves = gamestate.get_all_valid_moves(Color::Black);
 
@@ -2124,6 +2093,32 @@ mod move_tests {
                 .collect::<Vec<_>>()
         );
         assert_eq!(moves, game1.get_all_valid_moves(Color::White));
+
+        let mut game2 =
+            GameState::from_str("r7/1pp2bk1/p6p/2P1n3/KP1p3P/P5P1/3N1R2/7R b - - 2 39").unwrap();
+            // movr pawn from b7 to b5
+        let moves = game2.get_all_moves(Color::Black);
+        let i = moves
+            .iter()
+            .find(|movetype| match **movetype {
+                MoveType::Move { origin, new, .. } => {
+                    (new == Pos::new(5, 2)) && (origin == Pos::new(7, 2))
+                }
+                _ => false,
+            })
+            .unwrap();
+        game2.do_move(*i, None);
+        println!("{}", game2.board);
+        let moves = game2.new_all_valid_moves(Color::White);
+        println!(
+            "{:?}",
+            moves
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(moves, game2.get_all_valid_moves(Color::White));
+        println!("{}", game2.get_all_valid_moves(Color::White).len());
     }
 
     #[test]

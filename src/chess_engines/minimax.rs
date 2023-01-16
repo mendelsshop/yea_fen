@@ -14,22 +14,23 @@ pub fn minimax(
     let mut new_game = game.clone();
     let color = game.active_color;
     let moves = game.new_all_valid_moves(game.active_color);
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
     let ret = {
         let mut alpha = i32::MIN;
         let beta = i32::MAX;
         if depth == 0 {
             None
         } else {
-            let prom = match game.active_color {
-                Color::Black => Colored::Black(Piece::Queen),
-                Color::White => Colored::White(Piece::Queen),
-            };
+
             if moves.len() == 1 {
                 let score = moves.iter().last().unwrap();
-                if let MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } = score {
-                    return Some((*score, Some(prom)));
-                }
-                return Some((*score, None));
+                return match score {
+                    MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => Some((*score, Some(prom))),
+                    _ => Some((*score, None)),
+                };
             }
 
             let mut pot_move = **pick_random(&moves.iter().collect())?;
@@ -57,14 +58,10 @@ pub fn minimax(
 
     ret.map(|num| {
         match num.1 {
-            MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => {}
-            _ => return (num.1, None),
+            MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (num.1, Some(prom)),
+            _ => (num.1, None),
         }
-        let promotion = match game.active_color {
-            Color::Black => Colored::Black(Piece::Queen),
-            Color::White => Colored::White(Piece::Queen),
-        };
-        (num.1, Some(promotion))
+        
     })
 }
 
@@ -300,7 +297,7 @@ fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
                         // queen_count += 1;
                         phase -= queen_phase;
                     }
-                    _ => {}
+                    Piece::King => {}
                 }
                 if Color::from(piece.1) == game.active_color {
                     // todo: use piece list and add point for being in certain positions
@@ -326,9 +323,21 @@ fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
                             Color::from(piece.1),
                             true,
                         );
-                    mg -= get_piece_value(Piece::from(piece.1))
+                    mg -= get_piece_value(Piece::from(piece.1));
                 }
             }
+            // if 
+            match game.get_castling_moves().get(color) {
+                crate::Castling::None => mg -= 5,
+                crate::Castling::KingSide | crate::Castling::QueenSide => mg += 25,
+                crate::Castling::Both => mg += 55,
+            }
+            match game.get_castling_moves().get(color.opposite()) {
+                crate::Castling::None => mg += 5,
+                crate::Castling::KingSide | crate::Castling::QueenSide => mg -= 25,
+                crate::Castling::Both => mg -= 55,
+            }
+
             phase = (phase * 256 + (total_phase / 2)) / total_phase;
             ret += ((mg * (256 - phase)) + eg * phase) / 256;
 
