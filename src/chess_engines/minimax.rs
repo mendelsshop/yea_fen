@@ -24,11 +24,12 @@ pub fn minimax(
         if depth == 0 {
             None
         } else {
-
             if moves.len() == 1 {
                 let score = moves.iter().last().unwrap();
                 return match score {
-                    MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => Some((*score, Some(prom))),
+                    MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => {
+                        Some((*score, Some(prom)))
+                    }
                     _ => Some((*score, None)),
                 };
             }
@@ -56,12 +57,9 @@ pub fn minimax(
         }
     };
 
-    ret.map(|num| {
-        match num.1 {
-            MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (num.1, Some(prom)),
-            _ => (num.1, None),
-        }
-        
+    ret.map(|num| match num.1 {
+        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (num.1, Some(prom)),
+        _ => (num.1, None),
     })
 }
 
@@ -326,7 +324,7 @@ fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
                     mg -= get_piece_value(Piece::from(piece.1));
                 }
             }
-            // if 
+            // if
             match game.get_castling_moves().get(color) {
                 crate::Castling::None => mg -= 5,
                 crate::Castling::KingSide | crate::Castling::QueenSide => mg += 25,

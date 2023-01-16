@@ -1047,12 +1047,7 @@ impl GameState {
                 // get all moves for player and check if any of the moves block the check
                 let check = checks[0];
                 let moves = self.get_all_moves_pins(player, true);
-                if check.2
-                    == Colored::new(
-                        player.opposite(),
-                        Piece::Knight,
-                    )
-                {
+                if check.2 == Colored::new(player.opposite(), Piece::Knight) {
                     valid_poses.push(check.0);
                     // if the piece checking the king is a knight then the only move that can be made is to capture the knight
                 } else {
@@ -1080,8 +1075,9 @@ impl GameState {
                             | MoveType::CapturePromotion { piece, .. } => {
                                 piece.is(&Piece::King) || valid_poses.contains(&r#move.to())
                             }
-                            MoveType::EnPassant { captured_pos, new, .. } => {
-                                check.0 == captured_pos ||valid_poses.contains(&new)},
+                            MoveType::EnPassant {
+                                captured_pos, new, ..
+                            } => check.0 == captured_pos || valid_poses.contains(&new),
                             MoveType::Castle { .. } => false,
                             MoveType::Check => todo!(),
                         }
@@ -1221,11 +1217,7 @@ impl GameState {
             if (1..=8).contains(&row) && (1..=8).contains(&col) {
                 let piece_pos = Pos::new(row as u8, col as u8);
                 if let Some(Some(piece)) = self.board.get_cell(piece_pos) {
-                    if &Colored::new(
-                        player.opposite(),
-                        Piece::Knight,
-                    ) == piece
-                    {
+                    if &Colored::new(player.opposite(), Piece::Knight) == piece {
                         in_check = true;
                         checks.push((piece_pos, m, *piece));
                     }
@@ -2096,7 +2088,7 @@ mod move_tests {
 
         let mut game2 =
             GameState::from_str("r7/1pp2bk1/p6p/2P1n3/KP1p3P/P5P1/3N1R2/7R b - - 2 39").unwrap();
-            // movr pawn from b7 to b5
+        // movr pawn from b7 to b5
         let moves = game2.get_all_moves(Color::Black);
         let i = moves
             .iter()
