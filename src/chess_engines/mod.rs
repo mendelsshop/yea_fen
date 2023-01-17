@@ -2,8 +2,9 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{moves, Color, Colored, GameState, Piece, Pos};
+use crate::{moves::{self, MoveType}, Color, Colored, GameState, Piece, Pos};
 
+pub mod eval;
 pub mod minimax;
 pub mod random;
 pub mod random_capture;
@@ -55,9 +56,54 @@ fn pick_random<T>(items: &Vec<T>) -> Option<&T> {
 
 const fn get_capture_piece_value(piece: Piece) -> i32 {
     match piece {
-        Piece::King | Piece::Pawn => 1,
+        Piece::King => 0,
+        Piece::Pawn => 1,
         Piece::Queen => 9,
         Piece::Rook => 5,
         Piece::Bishop | Piece::Knight => 3,
     }
+}
+
+fn quiescence(
+    game: &mut GameState,
+    mut alpha: i32,
+    beta: i32,
+    mate: i32,
+    eval: fn(&GameState, i32) -> i32,
+) -> i32 {
+    let stand_pat = eval(game, mate);
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
+    if stand_pat >= beta {
+        return beta;
+    }
+    if alpha < stand_pat {
+        alpha = stand_pat;
+    }
+    let binding = game.new_all_valid_moves(game.active_color);
+    let moves = binding
+        .iter()
+        .filter(|mv| match mv {
+            MoveType::CapturePromotion { .. }
+            | MoveType::Capture { .. }
+            | MoveType::EnPassant { .. } => true,
+            _ => false,
+        })
+        .collect::<Vec<_>>();
+    for r#move in &moves {
+        if game.do_move(**r#move, Some(prom)) {
+            let score = -quiescence(game, -beta, -alpha, mate - 1, eval);
+            game.undo_move();
+            if score >= beta {
+                return beta;
+            }
+            if score > alpha {
+                alpha = score;
+            }
+        }
+    }
+
+    alpha
 }

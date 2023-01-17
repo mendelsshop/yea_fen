@@ -1,19 +1,24 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
+use std::{collections::HashSet, cmp};
+
 use crate::{
     chess_engines::pick_random,
     moves::{GameResult, MoveType},
     Color, Colored, GameState, Piece, Pos,
 };
 
+use super::{get_capture_piece_value, quiescence};
+
 pub fn minimax(
     game: &mut GameState,
     depth: usize,
 ) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
-    let mut new_game = game.clone();
+    
     let color = game.active_color;
     let moves = game.new_all_valid_moves(game.active_color);
+    let mut new_game = game.clone();
     let prom = match game.active_color {
         Color::Black => Colored::Black(Piece::Queen),
         Color::White => Colored::White(Piece::Queen),
@@ -36,6 +41,8 @@ pub fn minimax(
 
             let mut pot_move = **pick_random(&moves.iter().collect())?;
             let mut moves = moves.iter();
+            // negamax:
+            // let mut maxscore = i32::MIN;
             loop {
                 let r#move = match moves.next() {
                     None => break Some((alpha, pot_move)),
@@ -43,16 +50,40 @@ pub fn minimax(
                 };
 
                 new_game.do_move(*r#move, Some(prom));
+                
+                // minimax:
                 let score = min(&mut new_game, depth - 1, alpha, beta, color, i32::MAX);
+                new_game.undo_move();
                 if score >= beta {
-                    new_game.undo_move();
+                    
                     break Some((beta, *r#move));
                 }
                 if score > alpha {
                     alpha = score;
                     pot_move = *r#move;
                 }
-                new_game.undo_move();
+                // negamax:
+                // let score = negamax_alpha_beta(
+                //     &mut new_game,
+                //     depth - 1,
+                //     alpha,
+                //     beta,
+                //     if color == Color::White { 1 } else { -1 },
+                //     i32::MAX,
+                // );
+                // new_game.undo_move();
+                // if score > maxscore {
+                //     maxscore = score;
+                // }
+                // if maxscore > alpha {
+                //     pot_move = *r#move;
+                //     alpha = maxscore;
+                // }
+                // if alpha >= beta {
+                //     break Some((beta, *r#move));
+                // }
+
+
             }
         }
     };
@@ -75,26 +106,31 @@ fn max(
     color: Color,
     mate: i32,
 ) -> i32 {
-    if depth == 0 {
-        return tapered_eval_board(game, color, mate);
+    if depth == 0 || game.get_gameresult() != GameResult::InProgress {
+        return quiescence(
+            game,
+            alpha,
+            beta,
+            mate,
+            GameState::tapered_eval_board,
+        );
     }
     let prom = match game.active_color {
         Color::Black => Colored::Black(Piece::Queen),
         Color::White => Colored::White(Piece::Queen),
     };
-    let moves = game.new_all_valid_moves(game.active_color);
+    let moves = sort_moves( game.new_all_valid_moves(game.active_color));
     for r#move in &moves {
         if game.do_move(*r#move, Some(prom)) {
             let score = min(game, depth - 1, alpha, beta, color, mate - 1);
+            game.undo_move();
             if score >= beta {
-                game.undo_move();
                 return beta;
             }
             if score > alpha {
                 alpha = score;
             }
         }
-        game.undo_move();
     }
 
     alpha
@@ -108,448 +144,263 @@ fn min(
     color: Color,
     mate: i32,
 ) -> i32 {
-    if depth == 0 {
-        let score = tapered_eval_board(game, color, mate);
+    if depth == 0 || game.get_gameresult() != GameResult::InProgress {
+        let score = quiescence(
+            game,
+            alpha,
+            beta,
+            mate,
+            GameState::tapered_eval_board,
+        );
         return -score;
     }
     let prom = match game.active_color {
         Color::Black => Colored::Black(Piece::Queen),
         Color::White => Colored::White(Piece::Queen),
     };
-    let moves = game.new_all_valid_moves(game.active_color);
+    let moves = sort_moves( game.new_all_valid_moves(game.active_color));
     for r#move in &moves {
         if game.do_move(*r#move, Some(prom)) {
             let score = max(game, depth - 1, alpha, beta, color, mate - 1);
+            game.undo_move();
             if score <= alpha {
-                game.undo_move();
                 return alpha;
             }
             if score < beta {
                 beta = score;
             }
         }
-        game.undo_move();
     }
     beta
 }
 
-const fn get_piece_value(piece: Piece) -> i32 {
-    // the values are high so as when we do piece postion bonus ultimatly what pieces you have should have the most effect on the eval
-    match piece {
-        Piece::Pawn => 100,
-        Piece::Knight | Piece::Bishop => 300,
-        Piece::Rook => 500,
-        Piece::Queen => 900,
-        Piece::King => 10000,
+
+fn negamax_alpha_beta(
+    game: &mut GameState,
+    moves: &[MoveType<Pos, Colored<Piece>>],
+    depth: usize,
+    mut alpha: i32,
+    mut bm: Option<usize>,
+    beta: i32,
+    turn_multiplier: i32,
+    mate: i32,
+) -> (i32, Option<usize>) {
+    if depth == 0 || game.get_gameresult() != GameResult::InProgress {
+        // println!("quiescence at depth {}", depth);
+        return (turn_multiplier
+            * quiescence(
+                game,
+                alpha,
+                beta,
+                mate - 1,
+                GameState::tapered_eval_board
+            ), bm);
     }
-}
-
-fn eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
-    // evalutes the board based on how many pieces we have and their value
-    let mut ret = 0;
-    match game.result {
-        GameResult::CheckMate(c_color) => ret = if c_color == color { -mate } else { mate },
-        // GameResult::CheckMate(c_color) => ret = 0,
-        GameResult::StaleMate | GameResult::Draw | GameResult::InProgress => {
-            // first check if we have piece repetition
-
-            let mut pieces = vec![];
-            for (rowidx, row) in game.board.board.iter().enumerate() {
-                for (col, piece) in row
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(idx, piece)| piece.map(|piece| (idx, piece)))
-                {
-                    // todo: use piece list and add point for being in certain positions
-                    pieces.push(((rowidx, col), piece));
-                }
-            }
-            // todo if pieces count is less than a certain number use end game piece tables
-            let eg = pieces.len() < 13;
-            // pawn count
-            ret += pieces
-                .iter()
-                .filter(|piece| {
-                    Color::from(piece.1) == color && Piece::from(piece.1) == Piece::Pawn
-                })
-                .count() as i32
-                * 2;
-            // ret -= pieces.iter().filter(|piece| Color::from(piece.1) != color && Piece::from(piece.1) == Piece::Pawn).count() as i32 *2;
-            for piece in pieces {
-                if Color::from(piece.1) == game.active_color {
-                    // todo: use piece list and add point for being in certain positions
-                    ret += get_piece_value(Piece::from(piece.1))
-                        + eval_piece_pos(
-                            piece.1.into(),
-                            (piece.0 .0, piece.0 .1),
-                            Color::from(piece.1),
-                            eg,
-                        );
-                } else {
-                    ret -= get_piece_value(Piece::from(piece.1))
-                        + eval_piece_pos(
-                            piece.1.into(),
-                            (piece.0 .0, piece.0 .1),
-                            Color::from(piece.1),
-                            eg,
-                        );
-                }
-            }
-
-            if let GameResult::StaleMate | GameResult::Draw = game.result {
-                // if we have a stalemate or draw we to see if we have an advantage
-                // if we have an advantage we can still win so we should return around 0
-                // if we have a big disadvantage we should return a big number so we do pick that move
-                // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
-
-                if ret.is_negative() {
-                    // we have a disadvantage
-                    if ret.abs() > 1000 {
-                        // we have a big disadvantage
-                        ret = ret.abs() / 2;
-                    } else {
-                        // we have a small disadvantage
-                        ret = ret.abs() / 4;
-                    }
-                } else {
-                    ret = 0;
-                }
-            }
-        }
-    }
-
-    ret
-}
-
-fn tapered_eval_board(game: &GameState, color: Color, mate: i32) -> i32 {
-    // evalutes the board based on how many pieces we have and their value
-    let mut ret = 0;
-    match game.result {
-        GameResult::CheckMate(c_color) => ret = if c_color == color { -mate } else { mate },
-        // GameResult::CheckMate(c_color) => ret = 0,
-        GameResult::StaleMate | GameResult::Draw | GameResult::InProgress => {
-            // first check if we have piece repetition
-
-            let mut pieces = vec![];
-            for (rowidx, row) in game.board.board.iter().enumerate() {
-                for (col, piece) in row
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(idx, piece)| piece.map(|piece| (idx, piece)))
-                {
-                    // todo: use piece list and add point for being in certain positions
-                    pieces.push(((rowidx, col), piece));
-                }
-            }
-            // todo if pieces count is less than a certain number use end game piece tables
-            // let eg = pieces.len() < 13;
-            let mut eg = 0;
-            let mut mg = 0;
-            let pawn_phase = 0;
-            let knight_phase = 1;
-            let bishop_phase = 1;
-            let rook_phase = 2;
-            let queen_phase = 4;
-
-            let total_phase = pawn_phase * 16
-                + knight_phase * 4
-                + bishop_phase * 4
-                + rook_phase * 4
-                + queen_phase * 2;
-
-            let mut phase = total_phase;
-
-            // let mut pawn_count = 0;
-            // let mut knight_count = 0;
-            // let mut bishop_count = 0;
-            // let mut rook_count = 0;
-            // let mut queen_count = 0;
-            // pawn count
-            ret += pieces
-                .iter()
-                .filter(|piece| {
-                    Color::from(piece.1) == color && Piece::from(piece.1) == Piece::Pawn
-                })
-                .count() as i32
-                * 2;
-            // ret -= pieces.iter().filter(|piece| Color::from(piece.1) != color && Piece::from(piece.1) == Piece::Pawn).count() as i32 *2;
-            for piece in pieces {
-                match Piece::from(piece.1) {
-                    Piece::Pawn => {
-                        // pawn_count += 1;
-                        phase -= pawn_phase;
-                    }
-                    Piece::Knight => {
-                        // knight_count += 1;
-                        phase -= knight_phase;
-                    }
-                    Piece::Bishop => {
-                        // bishop_count += 1;
-                        phase -= bishop_phase;
-                    }
-                    Piece::Rook => {
-                        // rook_count += 1;
-                        phase -= rook_phase;
-                    }
-                    Piece::Queen => {
-                        // queen_count += 1;
-                        phase -= queen_phase;
-                    }
-                    Piece::King => {}
-                }
-                if Color::from(piece.1) == game.active_color {
-                    // todo: use piece list and add point for being in certain positions
-                    eg += get_piece_value(Piece::from(piece.1))
-                        + eval_piece_pos(
-                            piece.1.into(),
-                            (piece.0 .0, piece.0 .1),
-                            Color::from(piece.1),
-                            true,
-                        );
-                    mg += get_piece_value(Piece::from(piece.1))
-                        + eval_piece_pos(
-                            piece.1.into(),
-                            (piece.0 .0, piece.0 .1),
-                            Color::from(piece.1),
-                            false,
-                        );
-                } else {
-                    eg -= get_piece_value(Piece::from(piece.1))
-                        + eval_piece_pos(
-                            piece.1.into(),
-                            (piece.0 .0, piece.0 .1),
-                            Color::from(piece.1),
-                            true,
-                        );
-                    mg -= get_piece_value(Piece::from(piece.1));
-                }
-            }
-            // if
-            match game.get_castling_moves().get(color) {
-                crate::Castling::None => mg -= 5,
-                crate::Castling::KingSide | crate::Castling::QueenSide => mg += 25,
-                crate::Castling::Both => mg += 55,
-            }
-            match game.get_castling_moves().get(color.opposite()) {
-                crate::Castling::None => mg += 5,
-                crate::Castling::KingSide | crate::Castling::QueenSide => mg -= 25,
-                crate::Castling::Both => mg -= 55,
-            }
-
-            phase = (phase * 256 + (total_phase / 2)) / total_phase;
-            ret += ((mg * (256 - phase)) + eg * phase) / 256;
-
-            if let GameResult::StaleMate | GameResult::Draw = game.result {
-                // if we have a stalemate or draw we to see if we have an advantage
-                // if we have an advantage we can still win so we should return around 0
-                // if we have a big disadvantage we should return a big number so we do pick that move
-                // if we have a small disadvantage we should return a small number close to 0 so if we have a better move we will pick that
-
-                if ret.is_negative() {
-                    // we have a disadvantage
-                    if ret.abs() > 1000 {
-                        // we have a big disadvantage
-                        ret = ret.abs() / 2;
-                    } else {
-                        // we have a small disadvantage
-                        ret = ret.abs() / 4;
-                    }
-                } else {
-                    ret = 0;
-                }
-            }
-        }
-    }
-
-    ret
-}
-const MG_PAWN: [[i32; 8]; 8] = [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [50, 50, 50, 50, 50, 50, 50, 50],
-    [10, 10, 20, 30, 30, 20, 10, 10],
-    [5, 5, 10, 25, 25, 10, 5, 5],
-    [0, 0, 0, 20, 20, 0, 0, 0],
-    [5, -5, -10, 0, 0, -10, -5, 5],
-    [5, 10, 10, -20, -20, 10, 10, 5],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-];
-
-const EG_PAWN: [[i32; 8]; 8] = [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [20, 20, 20, 20, 20, 20, 20, 20],
-    [25, 30, 25, 25, 25, 30, 25, 25],
-    [30, 30, 30, 30, 30, 30, 30, 30],
-    [40, 40, 40, 40, 40, 40, 40, 40],
-    [50, 50, 50, 45, 45, 50, 50, 50],
-    [60, 60, 60, 55, 55, 60, 60, 60],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-];
-
-const MG_KNIGHT: [[i32; 8]; 8] = [
-    [-50, -40, -30, -30, -30, -30, -40, -50],
-    [-40, -20, 0, 0, 0, 0, -20, -40],
-    [-30, 0, 10, 15, 15, 10, 0, -30],
-    [-30, 5, 15, 20, 20, 15, 5, -30],
-    [-30, 0, 15, 20, 20, 15, 0, -30],
-    [-30, 5, 10, 15, 15, 10, 5, -30],
-    [-40, -20, 0, 5, 5, 0, -20, -40],
-    [-50, -40, -30, -30, -30, -30, -40, -50],
-];
-
-const MG_BISHOP: [[i32; 8]; 8] = [
-    [-20, -10, -10, -10, -10, -10, -10, -20],
-    [-10, 0, 0, 0, 0, 0, 0, -10],
-    [-10, 0, 5, 10, 10, 5, 0, -10],
-    [-10, 5, 5, 10, 10, 5, 5, -10],
-    [-10, 0, 10, 10, 10, 10, 0, -10],
-    [-10, 10, 10, 10, 10, 10, 10, -10],
-    [-10, 5, 0, 0, 0, 0, 5, -10],
-    [-20, -10, -10, -10, -10, -10, -10, -20],
-];
-
-const MG_ROOK: [[i32; 8]; 8] = [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [5, 10, 10, 10, 10, 10, 10, 5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [-5, 0, 0, 0, 0, 0, 0, -5],
-    [0, 0, 0, 5, 5, 0, 0, 0],
-];
-
-// make queen mid game table
-const MG_QUEEN: [[i32; 8]; 8] = [
-    [-20, -10, -10, -5, -5, -10, -10, -20],
-    [-10, 0, 0, 0, 0, 0, 0, -10],
-    [-10, 0, 5, 5, 5, 5, 0, -10],
-    [-5, 0, 5, 5, 5, 5, 0, -5],
-    [0, 0, 5, 5, 5, 5, 0, -5],
-    [-10, 5, 5, 5, 5, 5, 0, -10],
-    [-10, 0, 5, 0, 0, 0, 0, -10],
-    [-20, -10, -10, -5, -5, -10, -10, -20],
-];
-
-// king table
-const MG_KING: [[i32; 8]; 8] = [
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-30, -40, -40, -50, -50, -40, -40, -30],
-    [-20, -30, -30, -40, -40, -30, -30, -20],
-    [-10, -20, -20, -20, -20, -20, -20, -10],
-    [20, 20, 0, 0, 0, 0, 20, 20],
-    [20, 30, 10, 0, 0, 10, 30, 20],
-];
-
-const EG_KING: [[i32; 8]; 8] = [
-    [-10, -10, -10, -10, -10, -10, -10, -10],
-    [-10, 0, 0, 0, 0, 0, 0, -10],
-    [-10, 0, 5, 10, 10, 5, 0, -10],
-    [-10, 5, 5, 10, 10, 5, 5, -10],
-    [-10, 0, 10, 10, 10, 10, 0, -10],
-    [-10, 10, 10, 10, 10, 10, 10, -10],
-    [-10, 5, 0, 0, 0, 0, 5, -10],
-    [-20, -10, -10, -10, -10, -10, -10, -20],
-];
-
-macro_rules! piece_table {
-    ($pos:ident, $color:ident, $table:ident) => {
-        if $color == Color::White {
-            $table[$pos.0][$pos.1]
-        } else {
-            $table[7 - $pos.0][$pos.1]
-        }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
     };
+    let mut maxscore = (-mate, None);
+    for (idx, r#move) in moves.iter().enumerate() {
+        if game.do_move(*r#move, Some(prom)) {
+            if let None = bm {
+                bm = Some(idx);
+            }
+            let new_moves = sort_moves( game.new_all_valid_moves(game.active_color));
+            let score =
+                -negamax_alpha_beta(game, &new_moves, depth - 1, -beta, bm,-alpha, -turn_multiplier, mate - 1).0;
+            if !game.undo_move() {
+                println!("undo_move failed");
+            }
+            if score > maxscore.0 {
+                maxscore = (score, Some(idx));
+            }
+            if maxscore.0 > alpha {
+                alpha = maxscore.0;
+            }
+            if alpha >= beta {
+                break;
+            }
+
+        }
+    }
+    if maxscore.1.is_none() {
+        // println!("no best move at depth {} - 2", depth);
+    }
+    maxscore
 }
 
-fn eval_piece_pos(piece: Piece, pos: (usize, usize), color: Color, end_game: bool) -> i32 {
-    match piece {
-        Piece::Pawn => {
-            if end_game {
-                piece_table!(pos, color, EG_PAWN)
-            } else {
-                piece_table!(pos, color, MG_PAWN)
-            }
+pub fn negamax(    game: &mut GameState, depth: usize) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
+    let moves = sort_moves( game.new_all_valid_moves(game.active_color));
+    let mut game = game.clone();
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
+    let mate = i32::MAX;
+    let color = match game.active_color {
+        Color::Black => -1,
+        Color::White => 1,
+    };
+    let (_, bm) = negamax_alpha_beta(&mut game, &moves, depth, -mate, None, mate, color, mate);
+    let r#move = moves[bm?];
+    Some(match r#move {
+        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (r#move, Some(prom)),
+        _ => (r#move, None),
+    })
+
+}
+
+
+pub fn negamax1(    game: &mut GameState, depth: usize) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
+    let mate = i32::MAX;
+    let color = match game.active_color {
+        Color::Black => -1,
+        Color::White => 1,
+    };
+    let moves = sort_moves( game.new_all_valid_moves(game.active_color));
+     moves.into_iter().filter_map(|r#move| {
+        if game.do_move(r#move, Some(prom)) {
+            let score = negamax2(game, depth - 1, -color,i32::MIN + 1, mate , mate - 1);
+            game.undo_move();
+            Some((score, r#move))
+        } else {
+            None
         }
-        Piece::Knight => {
-            piece_table!(pos, color, MG_KNIGHT)
-        }
-        Piece::Bishop => {
-            piece_table!(pos, color, MG_BISHOP)
-        }
-        Piece::Rook => {
-            piece_table!(pos, color, MG_ROOK)
-        }
-        Piece::Queen => {
-            piece_table!(pos, color, MG_QUEEN)
-        }
-        Piece::King => {
-            // piece_table!(pos, color, MG_KING)
-            if end_game {
-                piece_table!(pos, color, EG_KING)
-            } else {
-                piece_table!(pos, color, MG_KING)
+    }).max_by_key(|(score, _)| *score).map(|(_, r#move)| match r#move {
+        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (r#move, Some(prom)),
+        _ => (r#move, None),
+    })
+    
+
+
+
+    // let (_, bm) = negamax_alpha_beta(game, &moves, depth, -mate, None, mate, if game.active_color == Color::White {1} else {-1}, mate);
+    // let r#move = moves[bm?];
+    // Some(match r#move {
+    //     MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (r#move, Some(prom)),
+    //     _ => (r#move, None),
+    // })
+
+}
+fn negamax2(
+    game: &mut GameState,
+    depth: usize,
+    color: i32,
+    alpha: i32,
+
+    beta: i32,
+    mate: i32,
+) -> i32 {
+    if depth == 0 {
+        return quiescence(game, alpha, beta, mate, GameState::tapered_eval_board);
+    }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
+    let mut a = alpha;
+    let mut best = std::i32::MIN + 1;
+    let moves = game.new_all_valid_moves(game.active_color);
+    // let positions = position
+    //     .get_moves(&self.move_generator)
+    //     .into_iter()
+    //     .map(|m| position.make_move(m));
+
+    for p in moves{
+        if game.do_move(p, Some(prom)) {
+            let v = -negamax2(game, depth - 1, -color, -beta, -a, mate -1);
+            game.undo_move();
+            best = cmp::max(v, best);
+            a = cmp::max(v, a);
+            if a >= beta {
+                break;
             }
         }
     }
+
+    color * best
 }
+fn negamax_alpha_beta1(
+    game: &mut GameState,
+    depth: usize,
+    mut alpha: i32,
+    beta: i32,
+    turn_multiplier: i32,
+    mate: i32,
+) -> i32 {
+    if depth == 0 || game.get_gameresult() != GameResult::InProgress {
+        return turn_multiplier
+            * quiescence(
+                game,
+                alpha,
+                beta,
+                mate - 1,
+                GameState::simple_eval,
+            );
+    }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
+    let moves = sort_moves( game.new_all_valid_moves(game.active_color));
+    let mut maxscore = -mate;
+    for r#move in &moves {
+        if game.do_move(*r#move, Some(prom)) {
+            let score =
+                -negamax_alpha_beta1(game, depth - 1, -beta, -alpha, -turn_multiplier, mate - 1);
+            game.undo_move();
+            if score > maxscore {
+                maxscore = score; 
+            }
+            if maxscore > alpha {
+                alpha = maxscore;
+            }
+            if alpha >= beta {
+                break;
+            }
+
+        }
+    }
+    maxscore
+}
+
+
+
+
+
+fn sort_moves(
+    moves: HashSet<MoveType<Pos, Colored<Piece>>>) -> Vec<MoveType<Pos, Colored<Piece>>> {
+    let mut moves = moves.into_iter().collect::<Vec<_>>();
+    moves.sort_by(|a, b| {
+        let a = match a {
+            MoveType::Capture { captured_piece, .. } => get_capture_piece_value(Piece::from(*captured_piece)),
+            MoveType::CapturePromotion { captured_piece, .. } => get_capture_piece_value(Piece::from(*captured_piece)) + 5,
+            MoveType::EnPassant { .. } => 1,
+            _ => 0,
+        };
+        let b = match b {
+            MoveType::Capture { captured_piece,  .. } => get_capture_piece_value(Piece::from(*captured_piece)),
+            MoveType::CapturePromotion { captured_piece, .. } => get_capture_piece_value(Piece::from(*captured_piece)) + 5,
+            MoveType::EnPassant { .. } => 1,
+            _ => 0,
+        };
+        b.cmp(&a)
+    });
+    moves
+
+    }
 
 #[cfg(test)]
 mod tests {
-    // use std::time::Instant;
-
-    use std::str::FromStr;
+    use std::{str::FromStr, time::Instant};
 
     use super::*;
-    use crate::{chess_engines::random::do_random_move, Board, GameState};
-
-    #[test]
-    fn test_eval() {
-        let mut state = GameState::from_str(
-            "r1bqkbnr/pppp1Qp1/2n4p/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4",
-        )
-        .unwrap();
-        let mut state1 =
-            GameState::from_str("r4k1b/ppp5/6K1/3B4/8/4P3/PPpP2P1/RNB5 w - - 0 23").unwrap();
-        let mut state2 = GameState::from_str("6kr/1p4p1/8/3n3p/rP6/3b4/1K6/8 b - - 1 40").unwrap();
-
-        println!("s1b {}", eval_board(&state, Color::Black, i32::MAX));
-        println!(
-            "ts1b {}",
-            tapered_eval_board(&state, Color::Black, i32::MAX)
-        );
-        state.active_color = Color::White;
-        println!("s1w {}", eval_board(&state, Color::White, i32::MAX));
-        // use taperd eval
-        println!(
-            "ts1w {}",
-            tapered_eval_board(&state, Color::White, i32::MAX)
-        );
-
-        println!("s2w {}", eval_board(&state1, Color::White, i32::MAX));
-        println!(
-            "ts2w {}",
-            tapered_eval_board(&state1, Color::White, i32::MAX)
-        );
-        state1.active_color = Color::Black;
-        println!("s2b {}", eval_board(&state1, Color::Black, i32::MAX));
-        println!(
-            "ts2b {}",
-            tapered_eval_board(&state1, Color::Black, i32::MAX)
-        );
-        println!("s3b {}", eval_board(&state2, Color::Black, i32::MAX));
-        println!(
-            "ts3b {}",
-            tapered_eval_board(&state2, Color::Black, i32::MAX)
-        );
-        state2.active_color = Color::White;
-        println!("s3w {}", eval_board(&state2, Color::White, i32::MAX));
-        println!(
-            "ts3w {}",
-            tapered_eval_board(&state2, Color::White, i32::MAX)
-        );
-    }
+    use crate::{chess_engines::random::do_random_move, GameState};
     #[test]
     fn min_max() {
         let mut game = GameState::new();
@@ -584,68 +435,77 @@ mod tests {
     }
 
     #[test]
-    fn tapered() {
-        let board = Board::from_str("rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR").unwrap();
+    fn move_ordering() {
+        let mut gs = GameState::from_str("r4rk1/pp3ppp/2nb4/2p3P1/4p3/1PP5/PR1BPq2/2QK1b2 w - - 0 21").unwrap();
+        // get all valid moves
+        let moves = gs.new_all_valid_moves(Color::White);
+        // do a random move
+        let moves = moves.into_iter().collect::<Vec<_>>();
+        let m = pick_random(&moves).unwrap();
+        gs.do_move(*m, None);
+        let moves = gs.new_all_valid_moves(Color::Black);
+        let moves = sort_moves(moves);
+        println!("{}", moves.iter().map(|m| format!("{}", m)).collect::<Vec<_>>().join(", "));
+    }
 
-        let pawn_phase = 0;
-        let knight_phase = 1;
-        let bishop_phase = 1;
-        let rook_phase = 2;
-        let queen_phase = 4;
+    #[test]
+    fn longest_minimax() {
+        let mut gs = GameState::new();
+        let now = Instant::now();
+        let mn1 = minimax(&mut gs, 1);
+        println!("minimax at depth of 1 took {}ms", now.elapsed().as_millis()); 
+        println!("move: {:?}", mn1);
+        let now = Instant::now();
+        let ne1 = negamax(&mut gs, 1);
+        println!("negamax at depth of 1 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", ne1);
+        let now = Instant::now();
+        let mn1 = minimax(&mut gs, 4);
+        println!("minimax at depth of 4 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", mn1);
+        let now = Instant::now();
+        let ne1 = negamax(&mut gs, 4);
+        println!("negamax at depth of 4 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", ne1);
 
-        let total_phase = pawn_phase * 16
-            + knight_phase * 4
-            + bishop_phase * 4
-            + rook_phase * 4
-            + queen_phase * 2;
+        let now = Instant::now();
+        let mn1 = minimax(&mut gs, 8);
+        println!("minimax at depth of 8 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", mn1);
+        let now = Instant::now();
+        let ne1 = negamax(&mut gs, 8);
+        println!("negamax at depth of 8 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", ne1);
 
-        let mut phase = total_phase;
 
-        let mut pawn_count = 0;
-        let mut knight_count = 0;
-        let mut bishop_count = 0;
-        let mut rook_count = 0;
-        let mut queen_count = 0;
+        let now = Instant::now();
+        let mn1 = minimax(&mut gs, 12);
 
-        for row in board.board {
-            for piece in row {
-                match piece {
-                    Some(piece) => match Piece::from(piece) {
-                        Piece::Pawn => {
-                            pawn_count += 1;
-                        }
-                        Piece::Knight => {
-                            knight_count += 1;
-                        }
-                        Piece::Bishop => {
-                            bishop_count += 1;
-                        }
-                        Piece::Rook => {
-                            rook_count += 1;
-                        }
-                        Piece::Queen => {
-                            queen_count += 1;
-                        }
-                        _ => {}
-                    },
-                    _ => {}
-                }
-            }
-        }
-        println!("pawn {}", pawn_count);
-        println!("knight {}", knight_count);
-        println!("bishop {}", bishop_count);
-        println!("rook {}", rook_count);
-        println!("queen {}", queen_count);
 
-        phase -= pawn_phase * pawn_count;
-        phase -= knight_phase * knight_count;
-        phase -= bishop_phase * bishop_count;
-        phase -= rook_phase * rook_count;
-        phase -= queen_phase * queen_count;
-        println!("{}", phase);
-        phase = (phase * 256 + (total_phase / 2)) / total_phase;
-        println!("{}", phase);
-        println!("{}", total_phase);
+        println!("minimax at depth of 12 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", mn1);
+        let now = Instant::now();
+        let ne1 = negamax(&mut gs, 12);
+        println!("negamax at depth of 12 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", ne1);
+
+        let now = Instant::now();
+        let mn1 = minimax(&mut gs, 16);
+        println!("minimax at depth of 16 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", mn1);
+        let now = Instant::now();
+        let ne1 = negamax(&mut gs, 16);
+        println!("negamax at depth of 16 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", ne1);
+
+        let now = Instant::now();
+        let mn1 = minimax(&mut gs, 20);
+        println!("minimax at depth of 20 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", mn1);
+        let now = Instant::now();
+        let ne1 = negamax(&mut gs, 20);
+        println!("negamax at depth of 20 took {}ms", now.elapsed().as_millis());
+        println!("move: {:?}", ne1);
+        
     }
 }

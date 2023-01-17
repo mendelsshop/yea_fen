@@ -316,6 +316,7 @@ pub enum GameResult {
     StaleMate,
     Draw,
     InProgress,
+    ThreeFoldRepetition,
 }
 
 impl GameState {
@@ -1030,6 +1031,9 @@ impl GameState {
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn new_all_valid_moves(&mut self, player: Color) -> HashSet<MoveType<Pos, Colored<Piece>>> {
+        if self.result != GameResult::InProgress {
+            return HashSet::new();
+        }
         // find king pos
         // really the king should always be on the board
         let king_pos = match self.find_king(player) {
@@ -1364,6 +1368,50 @@ impl GameState {
             self.full_move_clock += 1;
         }
         self.active_color = self.active_color.opposite();
+        // TODO: check for 3-fold repetition
+        if self.moves.len() >= 6 {
+            // take the last 6 moves
+            let last_6 = &self.moves[self.moves.len() - 6..];
+            // println!("last six {:?}", last_6);
+            // check if the last 6 moves are non reversible
+            if !last_6.iter().all(|x| {
+                matches!(
+                    x.move_type,
+                    MoveType::CapturePromotion { .. }
+                        | MoveType::Capture { .. }
+                        | MoveType::EnPassant { .. }
+                        | MoveType::Castle { .. }
+                )
+            }) {
+                // check if each move is the same as the two before it
+                let moves = last_6.windows(2);
+                let state_bak = self.result;
+                // if each move (whites move and blacks responce) is the same as the move (whites move and blacks responce) before it
+                let mut prev_moves = None;
+                for move_pair in moves {
+                    if let Some(prev_move_pair) = prev_moves {
+                        if prev_move_pair == move_pair {
+                            prev_moves = Some(move_pair);
+                            self.result = GameResult::Draw;
+                        } else {
+                            self.result = state_bak;
+                            break;
+                        }
+                    } else {
+                        prev_moves = Some(move_pair);
+                    }
+                }
+            }
+        }
+        // else {
+        //     // println!("not enough moves");
+        // }
+        if self.half_move_clock >= 50 {
+            self.result = GameResult::Draw;
+        } else {
+            // println!("# draw")
+        }
+
         true
     }
 
@@ -2111,6 +2159,28 @@ mod move_tests {
         );
         assert_eq!(moves, game2.get_all_valid_moves(Color::White));
         println!("{}", game2.get_all_valid_moves(Color::White).len());
+
+        let mut game3 =
+            GameState::from_str("8/1r6/1k5R/6p1/p1bBP2n/PpK2B2/8/8 b - - 13 59").unwrap();
+        println!("{}", game3.board);
+        let moves = game3.new_all_valid_moves(Color::Black);
+        println!(
+            "{:?}",
+            moves
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        );
+        let moves = game3.get_all_valid_moves(Color::Black);
+        println!(
+            "{:?}",
+            moves
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(moves, game3.new_all_valid_moves(Color::Black));
+
     }
 
     #[test]
