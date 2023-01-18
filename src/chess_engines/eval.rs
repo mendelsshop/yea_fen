@@ -1,7 +1,7 @@
 use crate::{moves::GameResult, Color, GameState, Piece};
 
 impl GameState {
-    pub fn simple_eval(&self,  mate: i32) -> i32 {
+    pub fn simple_eval(&self, mate: i32) -> i32 {
         // if we have a checkmate return the mate value
         match self.result {
             GameResult::CheckMate(c_color) => {
@@ -93,7 +93,9 @@ impl GameState {
         // evalutes the board based on how many pieces we have and their value
         let mut ret = 0;
         match self.result {
-            GameResult::CheckMate(c_color) => ret = if c_color == Color::White { -mate } else { mate },
+            GameResult::CheckMate(c_color) => {
+                ret = if c_color == Color::White { -mate } else { mate }
+            }
             GameResult::StaleMate | GameResult::Draw | GameResult::ThreeFoldRepetition => ret = 0,
             GameResult::InProgress => {
                 // first check if we have piece repetition
@@ -151,7 +153,9 @@ impl GameState {
         // evalutes the board based on how many pieces we have and their value
         let mut ret = 0;
         match self.result {
-            GameResult::CheckMate(c_color) => ret = if c_color == Color::White { -mate } else { mate },
+            GameResult::CheckMate(c_color) => {
+                ret = if c_color == Color::White { -mate } else { mate }
+            }
             GameResult::StaleMate | GameResult::Draw | GameResult::ThreeFoldRepetition => ret = 0,
             GameResult::InProgress => {
                 let mut pieces = vec![];
@@ -423,25 +427,25 @@ mod tests {
 
         let mut state2 = GameState::from_str("6kr/1p4p1/8/3n3p/rP6/3b4/1K6/8 b - - 1 40").unwrap();
         println!("{}", state.board);
-        println!("s1b {}", -state.eval_board( i32::MAX));
-        println!("ts1b {}", -state.tapered_eval_board( i32::MAX));
+        println!("s1b {}", -state.eval_board(i32::MAX));
+        println!("ts1b {}", -state.tapered_eval_board(i32::MAX));
         state.active_color = Color::White;
-        println!("s1w {}", state.eval_board( i32::MAX));
+        println!("s1w {}", state.eval_board(i32::MAX));
         // use taperd eval
-        println!("ts1w {}", state.tapered_eval_board( i32::MAX));
+        println!("ts1w {}", state.tapered_eval_board(i32::MAX));
 
         println!("{}", state1.board);
-        println!("s2w {}", state1.eval_board( i32::MAX));
-        println!("ts2w {}", state1.tapered_eval_board( i32::MAX));
+        println!("s2w {}", state1.eval_board(i32::MAX));
+        println!("ts2w {}", state1.tapered_eval_board(i32::MAX));
         state1.active_color = Color::Black;
-        println!("s2b {}", -state1.eval_board( i32::MAX));
-        println!("ts2b {}", -state1.tapered_eval_board( i32::MAX));
+        println!("s2b {}", -state1.eval_board(i32::MAX));
+        println!("ts2b {}", -state1.tapered_eval_board(i32::MAX));
 
         println!("{}", state2.board);
-        println!("s3b {}", -state2.eval_board( i32::MAX));
-        println!("ts3b {}", -state2.tapered_eval_board( i32::MAX));
+        println!("s3b {}", -state2.eval_board(i32::MAX));
+        println!("ts3b {}", -state2.tapered_eval_board(i32::MAX));
         state2.active_color = Color::White;
-        println!("s3w {}", state2.eval_board( i32::MAX));
-        println!("ts3w {}", state2.tapered_eval_board( i32::MAX));
+        println!("s3w {}", state2.eval_board(i32::MAX));
+        println!("ts3w {}", state2.tapered_eval_board(i32::MAX));
     }
 }

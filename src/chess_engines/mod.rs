@@ -2,7 +2,10 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{moves::{self, MoveType}, Color, Colored, GameState, Piece, Pos};
+use crate::{
+    moves::{self, MoveType},
+    Color, Colored, GameState, Piece, Pos,
+};
 
 pub mod eval;
 pub mod minimax;

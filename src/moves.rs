@@ -2180,7 +2180,6 @@ mod move_tests {
                 .collect::<Vec<_>>()
         );
         assert_eq!(moves, game3.new_all_valid_moves(Color::Black));
-
     }
 
     #[test]
