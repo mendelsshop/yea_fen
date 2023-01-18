@@ -72,16 +72,17 @@ fn quiescence(
     eval: fn(&GameState, i32) -> i32,
 ) -> i32 {
     let stand_pat = eval(game, mate);
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
-    };
+
     if stand_pat >= beta {
         return beta;
     }
     if alpha < stand_pat {
         alpha = stand_pat;
     }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
     let binding = game.new_all_valid_moves(game.active_color);
     let moves = binding
         .iter()
@@ -97,7 +98,53 @@ fn quiescence(
             let score = -quiescence(game, -beta, -alpha, mate - 1, eval);
             game.undo_move();
             if score >= beta {
-                return beta;
+                return score;
+            }
+            if score > alpha {
+                alpha = score;
+            }
+        }
+    }
+
+    alpha
+}
+
+fn quiescence_turn(
+    game: &mut GameState,
+    mut alpha: i32,
+    beta: i32,
+    mate: i32,
+    turn_multiplier: i32,
+    eval: fn(&GameState, i32) -> i32,
+) -> i32 {
+    let stand_pat = turn_multiplier * eval(game, mate);
+
+    if stand_pat >= beta {
+        return beta;
+    }
+    if alpha < stand_pat {
+        alpha = stand_pat;
+    }
+    let prom = match game.active_color {
+        Color::Black => Colored::Black(Piece::Queen),
+        Color::White => Colored::White(Piece::Queen),
+    };
+    let binding = game.new_all_valid_moves(game.active_color);
+    let moves = binding
+        .iter()
+        .filter(|mv| match mv {
+            MoveType::CapturePromotion { .. }
+            | MoveType::Capture { .. }
+            | MoveType::EnPassant { .. } => true,
+            _ => false,
+        })
+        .collect::<Vec<_>>();
+    for r#move in &moves {
+        if game.do_move(**r#move, Some(prom)) {
+            let score = -quiescence_turn(game, -beta, -alpha, mate - 1, -turn_multiplier, eval);
+            game.undo_move();
+            if score >= beta {
+                return score;
             }
             if score > alpha {
                 alpha = score;
