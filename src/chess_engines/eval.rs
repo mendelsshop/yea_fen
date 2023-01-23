@@ -6,9 +6,9 @@ impl GameState {
         match self.result {
             GameResult::CheckMate(c_color) => {
                 if c_color == Color::White {
-                    return -mate;
-                } else {
                     return mate;
+                } else {
+                    return -mate;
                 }
             }
             GameResult::StaleMate | GameResult::Draw => return 0,
@@ -36,9 +36,9 @@ impl GameState {
         match self.result {
             GameResult::CheckMate(c_color) => {
                 if c_color == Color::White {
-                    return -mate;
-                } else {
                     return mate;
+                } else {
+                    return -mate;
                 }
             }
             GameResult::StaleMate | GameResult::Draw => return 0,
@@ -94,7 +94,7 @@ impl GameState {
         let mut ret = 0;
         match self.result {
             GameResult::CheckMate(c_color) => {
-                ret = if c_color == Color::White { -mate } else { mate }
+                ret = if c_color == Color::White { mate } else { -mate }
             }
             GameResult::StaleMate | GameResult::Draw | GameResult::ThreeFoldRepetition => ret = 0,
             GameResult::InProgress => {
@@ -154,7 +154,7 @@ impl GameState {
         let mut ret = 0;
         match self.result {
             GameResult::CheckMate(c_color) => {
-                ret = if c_color == Color::White { -mate } else { mate }
+                ret = if c_color == Color::White { mate } else { -mate }
             }
             GameResult::StaleMate | GameResult::Draw | GameResult::ThreeFoldRepetition => ret = 0,
             GameResult::InProgress => {
