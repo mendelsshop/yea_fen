@@ -170,15 +170,19 @@ fn negamax_alpha_beta(
 ) -> (i32, Option<usize>) {
     if depth == 0 || game.get_gameresult() != GameResult::InProgress {
         // println!("quiescence at depth {}", depth);
+        // return (
+        //     quiescence(
+        //         game,
+        //         alpha,
+        //         beta,
+        //         mate - 1,
+        //         GameState::tapered_eval_board,
+        //     ),
+        //     bm,
+        // );
+
         return (
-            quiescence_turn(
-                game,
-                alpha,
-                beta,
-                mate - 1,
-                turn_multiplier,
-                GameState::tapered_eval_board,
-            ),
+            turn_multiplier * GameState::tapered_eval_board(game, mate - 1),
             bm,
         );
     }
