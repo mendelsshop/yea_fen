@@ -1356,13 +1356,19 @@ impl GameState {
         });
         self.en_passant = None;
         match r#move {
-            MoveType::Move { .. } | MoveType::MovePromotion { .. } | MoveType::Check => {
-                self.half_move_clock += 1;
+            MoveType::Move { piece, .. }  => {
+                if Piece::from(piece) == Piece::Pawn {
+                    self.half_move_clock = 0;
+                } else {
+                    self.half_move_clock += 1;
+                }
             }
             MoveType::Capture { .. }
+            | MoveType::MovePromotion { .. }
             | MoveType::CapturePromotion { .. }
             | MoveType::EnPassant { .. }
             | MoveType::Castle { .. } => self.half_move_clock = 0,
+            MoveType::Check => todo!(),
         }
         if self.active_color == Color::Black {
             self.full_move_clock += 1;
