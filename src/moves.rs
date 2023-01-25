@@ -1356,7 +1356,7 @@ impl GameState {
         });
         self.en_passant = None;
         match r#move {
-            MoveType::Move { piece, .. }  => {
+            MoveType::Move { piece, .. } => {
                 if Piece::from(piece) == Piece::Pawn {
                     self.half_move_clock = 0;
                 } else {
