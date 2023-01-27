@@ -1,7 +1,7 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use std::collections::HashSet;
+use std::{collections::HashSet};
 
 use crate::{
     chess_engines::pick_random,
@@ -285,6 +285,7 @@ pub fn negamax(
         });
     }
     let (_, bm, _) = negamax_alpha_beta(&mut game, &moves, depth, -mate, mate, None, color, mate);
+
     let r#move = bm.map(|m| (m.0, Some(m.1)))?;
     Some(match r#move.0 {
         MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => r#move,

@@ -312,6 +312,7 @@ impl Pos {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum GameResult {
+    /// the color of the player that lost
     CheckMate(Color),
     StaleMate,
     Draw,

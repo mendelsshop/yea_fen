@@ -1,6 +1,4 @@
 use crate::{moves::GameResult, Color, GameState, Piece};
-use std::fs::OpenOptions;
-use std::io::Write;
 
 impl GameState {
     pub fn simple_eval(&self, mate: i32) -> i32 {
@@ -8,9 +6,9 @@ impl GameState {
         match self.result {
             GameResult::CheckMate(c_color) => {
                 if c_color == Color::White {
-                    return mate;
+                    return -mate;
                 }
-                -mate
+                mate
             }
             GameResult::StaleMate | GameResult::Draw => 0,
             GameResult::InProgress | GameResult::ThreeFoldRepetition => {
@@ -37,9 +35,9 @@ impl GameState {
         match self.result {
             GameResult::CheckMate(c_color) => {
                 if c_color == Color::White {
-                    return mate;
+                    return -mate;
                 }
-                -mate
+                mate
             }
             GameResult::StaleMate | GameResult::Draw => 0,
             GameResult::InProgress | GameResult::ThreeFoldRepetition => {
@@ -85,7 +83,7 @@ impl GameState {
         let mut ret = 0;
         match self.result {
             GameResult::CheckMate(c_color) => {
-                ret = if c_color == Color::White { mate } else { -mate }
+                ret = if c_color == Color::White { -mate } else { mate }
             }
             GameResult::StaleMate | GameResult::Draw | GameResult::ThreeFoldRepetition => ret = 0,
             GameResult::InProgress => {
@@ -154,6 +152,11 @@ impl GameState {
             // if move 0 == move 2 and move 1 == move 3 then we have piece repetition
             if last_4_moves[0].to() == last_4_moves[2].from().0
                 && last_4_moves[1].to() == last_4_moves[3].from().0
+                && last_4_moves[2].to() == last_4_moves[0].from().0
+                && last_4_moves[3].to() == last_4_moves[1].from().0
+                // and the piece that moved is the same
+                && last_4_moves[0].from().1 == last_4_moves[2].from().1
+                && last_4_moves[1].from().1 == last_4_moves[3].from().1
             {
                 return Some(());
             }
@@ -166,7 +169,7 @@ impl GameState {
         let mut ret = 0;
         match self.result {
             GameResult::CheckMate(c_color) => {
-                ret = if c_color == Color::White { mate } else { -mate }
+                ret = if c_color == Color::White { -mate } else { mate }
             }
             GameResult::StaleMate | GameResult::Draw | GameResult::ThreeFoldRepetition => {
                 ret = 0;
@@ -267,9 +270,6 @@ impl GameState {
                 phase = (phase * 256 + (total_phase / 2)) / total_phase;
                 ret += ((mg * (256 - phase)) + eg * phase) / 256;
             }
-        }
-        if ret == 0 {
-            // println!("draw");
         }
         ret
     }
