@@ -2,14 +2,14 @@
 #![deny(clippy::use_self, rust_2018_idioms)]
 #![allow(clippy::must_use_candidate)]
 // temp allows
-// #![allow(
-//     clippy::cast_possible_truncation,
-//     clippy::cast_sign_loss,
-//     clippy::missing_panics_doc,
-//     clippy::too_many_lines,
-//     clippy::type_complexity,
-//     clippy::cast_possible_wrap
-// )]
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::missing_panics_doc,
+    clippy::too_many_lines,
+    clippy::type_complexity,
+    clippy::cast_possible_wrap
+)]
 pub mod chess_engines;
 /// stuff that has to do with making chess moves
 pub mod moves;
@@ -303,6 +303,8 @@ pub struct GameState {
     pub(crate) pins: Vec<(Pos, (i32, i32), Colored<Piece>)>,
     pub(crate) checks: Vec<(Pos, (i32, i32), Colored<Piece>)>,
     pub(crate) in_check: bool,
+
+    pub(crate) check_draws: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -375,6 +377,7 @@ impl GameState {
             pins: Vec::new(),
             checks: Vec::new(),
             in_check: false,
+            check_draws: false,
         }
     }
 
@@ -512,6 +515,7 @@ impl FromStr for GameState {
             pins: Vec::new(),
             checks: Vec::new(),
             in_check: false,
+            check_draws: false,
         })
     }
 }

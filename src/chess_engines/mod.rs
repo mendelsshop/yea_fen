@@ -89,11 +89,13 @@ fn quiescence(
     let binding = game.new_all_valid_moves(game.active_color);
     let moves = binding
         .iter()
-        .filter(|mv| match mv {
-            MoveType::CapturePromotion { .. }
-            | MoveType::Capture { .. }
-            | MoveType::EnPassant { .. } => true,
-            _ => false,
+        .filter(|mv| {
+            matches!(
+                mv,
+                MoveType::CapturePromotion { .. }
+                    | MoveType::Capture { .. }
+                    | MoveType::EnPassant { .. }
+            )
         })
         .collect::<Vec<_>>();
     for r#move in &moves {
@@ -112,6 +114,7 @@ fn quiescence(
     alpha
 }
 
+#[allow(dead_code)]
 fn quiescence_turn(
     game: &mut GameState,
     mut alpha: i32,
@@ -135,11 +138,13 @@ fn quiescence_turn(
     let binding = game.new_all_valid_moves(game.active_color);
     let moves = binding
         .iter()
-        .filter(|mv| match mv {
-            MoveType::CapturePromotion { .. }
-            | MoveType::Capture { .. }
-            | MoveType::EnPassant { .. } => true,
-            _ => false,
+        .filter(|mv| {
+            matches!(
+                mv,
+                MoveType::CapturePromotion { .. }
+                    | MoveType::Capture { .. }
+                    | MoveType::EnPassant { .. }
+            )
         })
         .collect::<Vec<_>>();
     for r#move in &moves {

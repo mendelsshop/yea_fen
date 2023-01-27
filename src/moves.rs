@@ -945,8 +945,12 @@ impl GameState {
 
                         let enemy_moves = self.get_all_moves(player.opposite());
                         checks.push(in_check(&enemy_moves, player));
-                        self.undo_move();
-                        self.undo_move();
+                        if !self.undo_move() {
+                            println!("undo move failed");
+                        }
+                        if !self.undo_move() {
+                            println!("undo move failed");
+                        }
                         return !checks.contains(&true);
                     }
                     // kingside
@@ -980,8 +984,12 @@ impl GameState {
 
                         let enemy_moves = self.get_all_moves(player.opposite());
                         checks.push(in_check(&enemy_moves, player));
-                        self.undo_move();
-                        self.undo_move();
+                        if !self.undo_move() {
+                            println!("undo move failed");
+                        }
+                        if !self.undo_move() {
+                            println!("undo move failed");
+                        }
                         return !checks.contains(&true);
                     }
                     _ => return false,
@@ -993,7 +1001,9 @@ impl GameState {
                 Color::Black => self.do_move(*pos, Some(Colored::Black(Piece::Queen))),
             };
             let enemy_moves = self.get_all_moves(player.opposite());
-            self.undo_move();
+            if !self.undo_move() {
+                println!("undo move failed");
+            }
             !in_check(&enemy_moves, player)
         });
         // it might not be the best place to check for checkmate and stalemate
@@ -1375,10 +1385,9 @@ impl GameState {
         }
         self.active_color = self.active_color.opposite();
         // TODO: check for 3-fold repetition
-        if self.moves.len() >= 6 {
+        if self.moves.len() >= 6 && self.check_draws {
             // take the last 6 moves
             let last_6 = &self.moves[self.moves.len() - 6..];
-            // println!("last six {:?}", last_6);
             // check if the last 6 moves are non reversible
             if !last_6.iter().all(|x| {
                 matches!(
@@ -1409,13 +1418,9 @@ impl GameState {
                 }
             }
         }
-        // else {
-        //     // println!("not enough moves");
-        // }
-        if self.half_move_clock >= 50 {
+        if self.half_move_clock >= 50 && self.check_draws {
             self.result = GameResult::Draw;
         } else {
-            // println!("# draw")
         }
 
         true
@@ -1499,6 +1504,8 @@ impl GameState {
             self.full_move_clock = r#move.full_move_clock;
             self.half_move_clock = r#move.half_move_clock;
             self.active_color = self.active_color.opposite();
+            // TODO: save the result in do_move and undo it here
+            self.result = GameResult::InProgress;
             true
         } else {
             false

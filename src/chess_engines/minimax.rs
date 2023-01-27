@@ -1,7 +1,7 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use std::{cmp, collections::HashSet};
+use std::collections::HashSet;
 
 use crate::{
     chess_engines::pick_random,
@@ -9,7 +9,7 @@ use crate::{
     Color, Colored, GameState, Piece, Pos,
 };
 
-use super::{get_capture_piece_value, quiescence, quiescence_turn};
+use super::{get_capture_piece_value, quiescence};
 
 pub fn minimax(
     game: &mut GameState,
@@ -157,6 +157,13 @@ fn min(
     }
     beta
 }
+#[derive(Debug)]
+#[allow(dead_code)]
+struct Node {
+    score: i32,
+    move_: String,
+    children: Vec<Node>,
+}
 
 fn negamax_alpha_beta(
     game: &mut GameState,
@@ -164,10 +171,14 @@ fn negamax_alpha_beta(
     depth: usize,
     mut alpha: i32,
     beta: i32,
-    mut bm: Option<usize>,
+    mut bm: Option<(MoveType<Pos, Colored<Piece>>, Colored<Piece>)>,
     turn_multiplier: i32,
     mate: i32,
-) -> (i32, Option<usize>) {
+) -> (
+    i32,
+    Option<(MoveType<Pos, Colored<Piece>>, Colored<Piece>)>,
+    Vec<Node>,
+) {
     if depth == 0 || game.get_gameresult() != GameResult::InProgress {
         // println!("quiescence at depth {}", depth);
         // return (
@@ -184,48 +195,68 @@ fn negamax_alpha_beta(
         return (
             turn_multiplier * GameState::tapered_eval_board(game, mate - 1),
             bm,
+            Vec::new(),
         );
     }
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
-    };
+
+    let mut nodes = Vec::new();
     let mut maxscore = (-mate, None);
-    for (idx, r#move) in moves.iter().enumerate() {
-        if game.do_move(*r#move, Some(prom)) {
-            if let None = bm {
-                bm = Some(idx);
+    for (_idx, r#move) in moves.iter().enumerate() {
+        let mut promotions = vec![];
+        promotions.push(Colored::new(game.active_color, Piece::Queen));
+        if let MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } = r#move {
+            promotions.push(Colored::new(game.active_color, Piece::Bishop));
+            promotions.push(Colored::new(game.active_color, Piece::Knight));
+            promotions.push(Colored::new(game.active_color, Piece::Rook));
+        }
+        let mut should_break = false;
+        for prom in promotions {
+            if game.do_move(*r#move, Some(prom)) {
+                bm = Some((*r#move, prom));
+                let new_moves = sort_moves(game.new_all_valid_moves(game.active_color));
+                let (score, _, children) = negamax_alpha_beta(
+                    game,
+                    &new_moves,
+                    depth - 1,
+                    -beta,
+                    -alpha,
+                    bm,
+                    -turn_multiplier,
+                    mate - 1,
+                );
+                let score = if game.check_repition() == Some(()) {
+                    0
+                } else {
+                    -score
+                };
+                nodes.push(Node {
+                    score,
+                    move_: format!("{}{}", r#move.from().0, r#move.to()),
+                    children,
+                });
+                if !game.undo_move() {
+                    println!("undo_move failed");
+                }
+                if score > maxscore.0 {
+                    maxscore = (score, Some((*r#move, prom)));
+                }
+                if maxscore.0 > alpha {
+                    alpha = maxscore.0;
+                }
+                if alpha >= beta {
+                    should_break = true;
+                    break;
+                }
             }
-            let new_moves = sort_moves(game.new_all_valid_moves(game.active_color));
-            let score = -negamax_alpha_beta(
-                game,
-                &new_moves,
-                depth - 1,
-                -beta,
-                -alpha,
-                bm,
-                -turn_multiplier,
-                mate - 1,
-            )
-            .0;
-            if !game.undo_move() {
-                println!("undo_move failed");
-            }
-            if score > maxscore.0 {
-                maxscore = (score, Some(idx));
-            }
-            if maxscore.0 > alpha {
-                alpha = maxscore.0;
-            }
-            if alpha >= beta {
-                break;
-            }
+        }
+        if should_break {
+            break;
         }
     }
     if maxscore.1.is_none() {
         maxscore.1 = bm;
     }
-    maxscore
+    (maxscore.0, maxscore.1, nodes)
 }
 
 pub fn negamax(
@@ -243,113 +274,21 @@ pub fn negamax(
         Color::Black => -1,
         Color::White => 1,
     };
-    let (_, bm) = negamax_alpha_beta(&mut game, &moves, depth, -mate, mate, None, color, mate);
-    let r#move = moves[bm?];
-    Some(match r#move {
-        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (r#move, Some(prom)),
-        _ => (r#move, None),
-    })
-}
-
-pub fn negamax1(
-    game: &mut GameState,
-    depth: usize,
-) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
-    };
-    let mate = i32::MAX;
-    let color = match game.active_color {
-        Color::Black => -1,
-        Color::White => 1,
-    };
-    let moves = sort_moves(game.new_all_valid_moves(game.active_color));
-    moves
-        .into_iter()
-        .filter_map(|r#move| {
-            if game.do_move(r#move, Some(prom)) {
-                let score = negamax2(game, depth - 1, -color, i32::MIN + 1, mate, mate - 1);
-                game.undo_move();
-                Some((score, r#move))
-            } else {
-                None
-            }
-        })
-        .max_by_key(|(score, _)| *score)
-        .map(|(_, r#move)| match r#move {
+    if moves.len() == 1 {
+        // this will not panic because we checked that moves.len() == 1
+        return Some(match moves.get(0).unwrap() {
             MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => {
-                (r#move, Some(prom))
+                (moves[0], Some(prom))
             }
-            _ => (r#move, None),
-        })
-}
-fn negamax2(
-    game: &mut GameState,
-    depth: usize,
-    color: i32,
-    alpha: i32,
-    beta: i32,
-    mate: i32,
-) -> i32 {
-    if depth == 0 {
-        return quiescence(game, alpha, beta, mate, GameState::tapered_eval_board);
+            _ => (moves[0], None),
+        });
     }
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
-    };
-    let mut a = alpha;
-    let mut best = std::i32::MIN + 1;
-    let moves = game.new_all_valid_moves(game.active_color);
-    for p in moves {
-        if game.do_move(p, Some(prom)) {
-            let v = -negamax2(game, depth - 1, -color, -beta, -a, mate - 1);
-            game.undo_move();
-            best = cmp::max(v, best);
-            a = cmp::max(v, a);
-            if a >= beta {
-                break;
-            }
-        }
-    }
-
-    color * best
-}
-fn negamax_alpha_beta1(
-    game: &mut GameState,
-    depth: usize,
-    mut alpha: i32,
-    beta: i32,
-    turn_multiplier: i32,
-    mate: i32,
-) -> i32 {
-    if depth == 0 || game.get_gameresult() != GameResult::InProgress {
-        return turn_multiplier * quiescence(game, alpha, beta, mate - 1, GameState::simple_eval);
-    }
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
-    };
-    let moves = sort_moves(game.new_all_valid_moves(game.active_color));
-    let mut maxscore = -mate;
-    for r#move in &moves {
-        if game.do_move(*r#move, Some(prom)) {
-            let score =
-                -negamax_alpha_beta1(game, depth - 1, -beta, -alpha, -turn_multiplier, mate - 1);
-            game.undo_move();
-            if score > maxscore {
-                maxscore = score;
-            }
-            if maxscore > alpha {
-                alpha = maxscore;
-            }
-            if alpha >= beta {
-                break;
-            }
-        }
-    }
-    maxscore
+    let (_, bm, _) = negamax_alpha_beta(&mut game, &moves, depth, -mate, mate, None, color, mate);
+    let r#move = bm.map(|m| (m.0, Some(m.1)))?;
+    Some(match r#move.0 {
+        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => r#move,
+        _ => (r#move.0, None),
+    })
 }
 
 fn sort_moves(moves: HashSet<MoveType<Pos, Colored<Piece>>>) -> Vec<MoveType<Pos, Colored<Piece>>> {
