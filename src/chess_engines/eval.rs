@@ -1,3 +1,5 @@
+use std::fs::OpenOptions;
+use std::io::Write;
 use crate::{moves::GameResult, Color, GameState, Piece};
 
 impl GameState {
@@ -141,7 +143,7 @@ impl GameState {
     }
 
     pub(crate) fn check_repition(&self) -> Option<()> {
-        if self.moves.len() > 4 {
+        if self.moves.len() >= 4 {
             let last_4_moves = self
                 .moves
                 .iter()
@@ -149,9 +151,8 @@ impl GameState {
                 .take(4)
                 .map(|m| m.move_type)
                 .collect::<Vec<_>>();
-
             // if move 0 == move 2 and move 1 == move 3 then we have piece repetition
-            if last_4_moves[0] == last_4_moves[2] && last_4_moves[1] == last_4_moves[3] {
+            if last_4_moves[0].to() == last_4_moves[2].from().0 && last_4_moves[1].to() == last_4_moves[3].from().0 {
                 return Some(());
             }
         }
