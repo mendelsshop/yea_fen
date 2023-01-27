@@ -1,7 +1,7 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use std::{collections::HashSet};
+use std::collections::HashSet;
 
 use crate::{
     chess_engines::pick_random,
