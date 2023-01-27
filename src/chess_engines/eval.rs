@@ -1,6 +1,6 @@
+use crate::{moves::GameResult, Color, GameState, Piece};
 use std::fs::OpenOptions;
 use std::io::Write;
-use crate::{moves::GameResult, Color, GameState, Piece};
 
 impl GameState {
     pub fn simple_eval(&self, mate: i32) -> i32 {
@@ -152,7 +152,9 @@ impl GameState {
                 .map(|m| m.move_type)
                 .collect::<Vec<_>>();
             // if move 0 == move 2 and move 1 == move 3 then we have piece repetition
-            if last_4_moves[0].to() == last_4_moves[2].from().0 && last_4_moves[1].to() == last_4_moves[3].from().0 {
+            if last_4_moves[0].to() == last_4_moves[2].from().0
+                && last_4_moves[1].to() == last_4_moves[3].from().0
+            {
                 return Some(());
             }
         }
