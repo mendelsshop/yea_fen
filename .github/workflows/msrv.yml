@@ -15,7 +15,7 @@ jobs:
   create-msrv-badge:
     # needs: install-cargo-msrv
     runs-on: ubuntu-latest
-    container: foresterre/cargo-msrv
+    # container: foresterre/cargo-msrv
     strategy:
       matrix:
         crates: [yea_fen, yea_fen_uci, yea_fen_gui]
@@ -27,7 +27,7 @@ jobs:
         id: get-msrv
         run: |
           echo "msrv=$(cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)" >> $GITHUB_ENV
-
+      - uses: docker://foresterre/cargo-msrv
       - name: Create Badge
         run: curl https://img.shields.io/badge/minimum%20rust%20version-${{ env.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
       - name: Commit Badge
