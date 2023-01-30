@@ -6,26 +6,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  install-cargo-msrv:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install cargo-msrv
-        run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
+  # install-cargo-msrv:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Install cargo-msrv
+  #       run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
   create-msrv-badge:
-    needs: install-cargo-msrv
+    # needs: install-cargo-msrv
     runs-on: ubuntu-latest
+    container: foresterre/cargo-msrv
     strategy:
       matrix:
         crates: [yea_fen, yea_fen_uci, yea_fen_gui]
       fail-fast: false
     steps:
+      
       - uses: actions/checkout@v3
-      # - uses: spenserblack/actions-msrv@v0.4.1
-      #   id: get-msrv
-      #   with:
-      #     set: true
-      #     path: ${{ matrix.crates }}
       - name: Get MSRV
         id: get-msrv
         run: |
