@@ -1,0 +1,1 @@
+![msrv](.././resources/yea_fen_gui.svg)

@@ -20,14 +20,14 @@ jobs:
           set: true
           path: ${{ matrix.crates }}
       - name: Create Badge
-        run: curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.get-msrv.outputs.msrv }}-blue > resources/${{ matrix.crates }}.svg
+        run: curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.get-msrv.outputs.msrv }}-blue > resources/${{ matrix.crates }}_msrv.svg
       - name: Commit Badge
         # If there are no changes to the badge this would error out. But it
         # isn't a problem if there were no changes, so errors are allowed.
         continue-on-error: true
         run: |
-          git add resources/${{ matrix.crates }}.svg
-          git add {${{ matrix.crates }}/Cargo.toml
+          git add resources/${{ matrix.crates }}_msrv.svg
+          git add ${{ matrix.crates }}/Cargo.toml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "Update MSRV badge [Skip CI]"
