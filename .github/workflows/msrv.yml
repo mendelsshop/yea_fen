@@ -30,7 +30,7 @@ jobs:
 
       - name: Create Badge
         run: |
-          sudo apt install curl
+          apt install curl
           curl https://img.shields.io/badge/minimum%20rust%20version-${{ env.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
       - name: Commit Badge
         # If there are no changes to the badge this would error out. But it
