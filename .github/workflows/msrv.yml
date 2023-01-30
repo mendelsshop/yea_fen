@@ -21,6 +21,7 @@ jobs:
       - name: Get MSRV and create badge
         id: get-msrv
         run: |
+          rm Cargo.toml
           cd ${{ matrix.crates }}
           cargo msrv
           echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
