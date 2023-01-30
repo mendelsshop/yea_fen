@@ -20,21 +20,23 @@ jobs:
           rm Cargo.toml
           ls -l
       - uses: actions/checkout@v3
-      # - name: Get MSRV and create badge
-        # echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
-        # id: get-msrv
-        # run: |
-        #   rm Cargo.toml
-        #   cd ${{ matrix.crates }}
+      - name: Get MSRV and create badge
+        
+        id: get-msrv
+        run: |
+          rm Cargo.toml
+        
+          cd ${{ matrix.crates }}
+          echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
         #   cargo msrv
-      - uses: spenserblack/actions-set-output@v1
-        id: output-step
-        with:
-          variables: |
-            msrv=$(cargo msrv --output-format=minimal --write-msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)
+      # - uses: spenserblack/actions-set-output@v1
+      #   id: output-step
+      #   with:
+      #     variables: |
+      #       msrv=$(cargo msrv --output-format=minimal --write-msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)
       - name: Create Badge
         run: |
-          curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.output-step.outputs.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
+          curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.get-msrv.outputs.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
       - name: Commit Badge
         # If there are no changes to the badge this would error out. But it
         # isn't a problem if there were no changes, so errors are allowed.
