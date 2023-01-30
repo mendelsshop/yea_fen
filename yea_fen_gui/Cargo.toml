@@ -1,0 +1,13 @@
+[package]
+name = "yea_fen_gui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# yea_fen = {git = "https://github.com/mendelsshop/yea_fen.git"}
+yea_fen = {path = "../yea_fen", version = "0.1.0"}
+eframe = {version = "0.20.1",default_features = false, features = ["dark-light", "glow", "default_fonts"]}
+egui_extras = {version = "0.20", features = ["image"]}
+image = { version = "0.24.5", default-features = false, features = ["png"] }
