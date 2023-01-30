@@ -1,7 +1,7 @@
 use std::sync::mpsc;
 
-use yea_fen_gui::{ChessApp, threads};
 use eframe::run_native;
+use yea_fen_gui::{threads, ChessApp};
 
 fn main() {
     let (send, recv) = mpsc::channel();

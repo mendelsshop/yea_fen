@@ -1,12 +1,16 @@
 use std::{
     collections::VecDeque,
     str::FromStr,
-    sync::{mpsc::Sender, Arc, Mutex}
+    sync::{mpsc::Sender, Arc, Mutex},
 };
 
 use yea_fen::{chess_engines::minimax, moves::MoveType, Colored, GameState, Piece, Pos};
 fn make_info(info: &str) -> String {
-    info.lines().map(|s| format!("# info {s}\n")).collect::<String>().trim().to_owned()
+    info.lines()
+        .map(|s| format!("# info {s}\n"))
+        .collect::<String>()
+        .trim()
+        .to_owned()
 }
 fn main() {
     // wait until the "uci" command is received
@@ -49,21 +53,31 @@ fn main() {
                 // } else {
                 //     println!("# info error: no best move found");
                 // }
-            }
-            else if input.trim() == "quit" {
+            } else if input.trim() == "quit" {
                 std::process::exit(0);
-            }
-            else if input.trim().starts_with("position") {
+            } else if input.trim().starts_with("position") {
                 set_position(input.trim(), &mut move_list, &mut gs);
                 println!("# info set position");
-                println!("{}", make_info(format!("board: \n{}", gs.get_board().to_string()).as_str()));
+                println!(
+                    "{}",
+                    make_info(format!("board: \n{}", gs.get_board().to_string()).as_str())
+                );
 
-                println!("{}", make_info(format!("gs fen {}", gs.to_string()).as_str()));
+                println!(
+                    "{}",
+                    make_info(format!("gs fen {}", gs.to_string()).as_str())
+                );
             } else if input.trim().starts_with("go") {
-                println!("{}", make_info(format!("going for color {:?}", gs.get_active_color()).as_str()));
+                println!(
+                    "{}",
+                    make_info(format!("going for color {:?}", gs.get_active_color()).as_str())
+                );
                 if let Some((m, p)) = minimax::negamax(&mut gs, 4) {
                     let p = if let Some(p) = p {
-                        println!("{}", make_info(format!("prom piece: {:?} move {:?}", p, m).as_str()));
+                        println!(
+                            "{}",
+                            make_info(format!("prom piece: {:?} move {:?}", p, m).as_str())
+                        );
                         match p {
                             Colored::Black(Piece::Queen) => Some('q'),
                             Colored::Black(Piece::Rook) => Some('r'),
@@ -74,28 +88,26 @@ fn main() {
                             Colored::White(Piece::Bishop) => Some('B'),
                             Colored::White(Piece::Knight) => Some('N'),
 
-
                             _ => None,
                         }
                     } else {
                         None
                     };
-                    let moves = format!("bestmove {}{}{}",
-                    m.from().0,
-                    m.to(),
-                    match p {
-                        Some(p) => p,
-                        None => ' ',
-                    });
-                    best_move = Some(moves.clone());
-                    println!(
-                        "{moves}"
+                    let moves = format!(
+                        "bestmove {}{}{}",
+                        m.from().0,
+                        m.to(),
+                        match p {
+                            Some(p) => p,
+                            None => ' ',
+                        }
                     );
+                    best_move = Some(moves.clone());
+                    println!("{moves}");
                 } else {
                     println!("# info error: could not find best move");
                 }
             }
-
         }
     });
     loop {
@@ -163,7 +175,7 @@ fn set_position(pos_str: &str, current_moves: &mut Vec<String>, gs: &mut GameSta
             //     } else if nxt_new.is_some() {
             //         split_str = new_move_iter.clone();
             //         break;
-            //     } 
+            //     }
             //     else {
             //         break;
             //     }
@@ -225,7 +237,6 @@ fn get_move(
             'r' => Some((Piece::Rook)),
             'b' => Some((Piece::Bishop)),
             'n' => Some((Piece::Knight)),
-            
 
             _ => None,
         }
@@ -240,7 +251,8 @@ fn get_move(
     moves
         .into_iter()
         .find(|m| m.to() == end_pos && m.from().0 == start_pos)
-        .map(|m| (m, promotion.map(|prom|Colored::new(m.color(), prom)))).ok_or("invalid move".to_string())
+        .map(|m| (m, promotion.map(|prom| Colored::new(m.color(), prom))))
+        .ok_or("invalid move".to_string())
 }
 
 mod tests {

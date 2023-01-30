@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 use wigets::ImageButton;
-use yea_fen::chess_engines::minimax::{negamax};
+use yea_fen::chess_engines::minimax::negamax;
 pub mod wigets;
 use yea_fen::{
     chess_engines::{
@@ -363,7 +363,6 @@ impl eframe::App for ChessApp {
                                         self.white_square = Color32::GOLD;
                                         self.last_black = Color32::from_rgb(25, 25, 25);
                                         self.last_white = Color32::from_rgb(200, 200, 200)
-
                                     }
                                     ui.add(Separator::default().horizontal());
                                 });
@@ -397,7 +396,9 @@ impl eframe::App for ChessApp {
                     self.new_game_button(ui, frame);
                 });
             }
-            yea_fen::moves::GameResult::StaleMate | yea_fen::moves::GameResult::Draw | GameResult::ThreeFoldRepetition => {
+            yea_fen::moves::GameResult::StaleMate
+            | yea_fen::moves::GameResult::Draw
+            | GameResult::ThreeFoldRepetition => {
                 egui::Window::new("result").open(&mut true).show(ctx, |ui| {
                     ui.label("Draw");
                     self.new_game_button(ui, frame);
