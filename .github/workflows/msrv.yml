@@ -31,7 +31,7 @@ jobs:
           echo "import os;os.system('cargo msrv --output-format=minimal --write-msrv')" > msrv.py
           python3 msrv.py > msrv.txt
           tr -d '\n' < msrv.txt > msrv2.txt
-          echo "msrv=$(cat msrv2.txt)" >> $GITHUB_ENV
+          echo "msrv=$(cat msrv2.txt)" >> $GITHUB_OUTPUT
         # echo "msrv=$(cargo msrv)" >> $GITHUB_OUTPUT
         #   cargo msrv
       # - uses: spenserblack/actions-set-output@v1
