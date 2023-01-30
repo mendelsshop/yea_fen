@@ -30,9 +30,9 @@ jobs:
           ls -l
           echo "import os;os.system('cargo msrv --output-format=minimal --write-msrv')" > msrv.py
           python3 msrv.py > msrv.txt
-          tr -d '\n' < msrv.txt > msrv.txt
-          cat msrv.txt
-          echo "msrv=$(cat msrv.txt)" >> $GITHUB_OUTPUT
+          tr -d '\n' < msrv.txt > msrv2.txt
+          cat msrv2.txt
+          echo "msrv=$(cat msrv2.txt)" >> $GITHUB_OUTPUT
       - name: Create Badge
         run: |
           curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.get-msrv.outputs.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
