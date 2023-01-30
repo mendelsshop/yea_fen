@@ -12,10 +12,11 @@ jobs:
       matrix:
         crates: [yea_fen, yea_fen_uci, yea_fen_gui]
       fail-fast: false
+    container: mendelrubin/cargo-msrv:latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install cargo-msrv
-        run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
+      # - name: Install cargo-msrv
+      #   run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
       - uses: actions/checkout@v3
       - name: Get MSRV
         id: get-msrv
