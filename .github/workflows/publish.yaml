@@ -10,10 +10,13 @@ on:
 jobs:
   Publish:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        crates: [yea_fen, yea_fen_uci, yea_fen_gui]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v3
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
       - run: |
-          cargo publish --token ${{ secrets.CRATES_TOKEN }} 
+          cargo publish -p ${{ matrix.crate }} --token ${{ secrets.CRATES_TOKEN }} 

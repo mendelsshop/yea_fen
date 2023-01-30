@@ -26,6 +26,7 @@ jobs:
         # isn't a problem if there were no changes, so errors are allowed.
         continue-on-error: true
         run: |
+          git pull
           git add resources/${{ matrix.crates }}_msrv.svg
           git add ${{ matrix.crates }}/Cargo.toml
           git config user.name "github-actions[bot]"
