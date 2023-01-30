@@ -30,15 +30,9 @@ jobs:
           ls -l
           echo "import os;os.system('cargo msrv --output-format=minimal --write-msrv')" > msrv.py
           python3 msrv.py > msrv.txt
-          tr -d '\n' < msrv.txt > msrv2.txt
-          echo "msrv=$(cat msrv2.txt)" >> $GITHUB_OUTPUT
-        # echo "msrv=$(cargo msrv)" >> $GITHUB_OUTPUT
-        #   cargo msrv
-      # - uses: spenserblack/actions-set-output@v1
-      #   id: output-step
-      #   with:
-      #     variables: |
-      #       msrv=$(cargo msrv --output-format=minimal --write-msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)
+          tr -d '\n' < msrv.txt > msrv.txt
+          cat msrv.txt
+          echo "msrv=$(cat msrv.txt)" >> $GITHUB_OUTPUT
       - name: Create Badge
         run: |
           curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.get-msrv.outputs.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
