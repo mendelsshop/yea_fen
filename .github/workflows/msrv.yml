@@ -27,7 +27,7 @@ jobs:
         #   rm Cargo.toml
         #   cd ${{ matrix.crates }}
         #   cargo msrv
-      - uses: spenserblack/actions-set-output
+      - uses: spenserblack/actions-set-output@ae81ce3ea00c897641e0edee67df1ee198c5f808
         id: output-step
         with:
           variables: |
