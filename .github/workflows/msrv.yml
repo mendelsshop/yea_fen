@@ -13,7 +13,7 @@ jobs:
   #     - name: Install cargo-msrv
   #       run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
   create-msrv-badge:
-    needs: install-cargo-msrv
+    # needs: install-cargo-msrv
     runs-on: ubuntu-latest
     container: foresterre/cargo-msrv
     strategy:
