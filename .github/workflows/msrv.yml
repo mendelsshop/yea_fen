@@ -15,16 +15,16 @@ jobs:
     container: mendelrubin/cargo-msrv:latest
     steps:
       - uses: actions/checkout@v3
-      - name: remove Cargo.toml so cargo-msrv doesn't find it
-        run: rm Cargo.toml
+      # - name: remove Cargo.toml so cargo-msrv doesn't find it
+        # run: rm Cargo.toml
       - uses: actions/checkout@v3
-      - name: Get MSRV and create badge
+      # - name: Get MSRV and create badge
         # echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
-        id: get-msrv
-        run: |
-          rm Cargo.toml
-          cd ${{ matrix.crates }}
-          cargo msrv
+        # id: get-msrv
+        # run: |
+        #   rm Cargo.toml
+        #   cd ${{ matrix.crates }}
+        #   cargo msrv
 
       - name: Create Badge
         run: |
