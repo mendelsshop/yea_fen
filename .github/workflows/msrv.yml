@@ -8,7 +8,6 @@ on:
 jobs:
   create-msrv-badge:
     runs-on: ubuntu-latest
-    container: foresterre/cargo-msrv
     strategy:
       matrix:
         crates: [yea_fen, yea_fen_uci, yea_fen_gui]
