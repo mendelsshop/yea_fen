@@ -28,7 +28,7 @@ jobs:
         
           cd ${{ matrix.crates }}
           ls -l
-          echo echo "import os;os.system('cargo msrv --output-format=minimal --write-msrv')" > msrv.py
+          echo "import os;os.system('cargo msrv --output-format=minimal --write-msrv')" > msrv.py
           echo "msrv=$(python3 msrv.py)" >> $GITHUB_ENV
         # echo "msrv=$(cargo msrv)" >> $GITHUB_OUTPUT
         #   cargo msrv
