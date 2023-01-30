@@ -28,6 +28,7 @@ jobs:
         
           cd ${{ matrix.crates }}
           ls -l
+          cargo msrv --output-format=minimal --write-msrv
           echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
         # echo "msrv=$(cargo msrv)" >> $GITHUB_OUTPUT
         #   cargo msrv
