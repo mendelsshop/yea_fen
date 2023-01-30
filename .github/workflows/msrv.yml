@@ -15,12 +15,15 @@ jobs:
     container: mendelrubin/cargo-msrv:latest
     steps:
       - uses: actions/checkout@v3
+      - name: remove Cargo.toml so cargo-msrv doesn't find it
+        run: rm Cargo.toml
       - uses: actions/checkout@v3
       - name: Get MSRV and create badge
         id: get-msrv
         run: |
-          cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml
-          echo "msrv=$(cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)" >> $GITHUB_OUTPUT
+          cd ${{ matrix.crates }}
+          cargo msrv
+          echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
       - name: Create Badge
         run: |
           curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.get-msrv.outputs.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
