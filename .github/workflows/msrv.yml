@@ -18,14 +18,10 @@ jobs:
       # - name: Install cargo-msrv
       #   run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
       - uses: actions/checkout@v3
-      - name: Get MSRV
+      - name: Get MSRV and create badge
         id: get-msrv
         run: |
           echo "msrv=$(cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)" >> $GITHUB_ENV
-
-      - name: Create Badge
-        run: |
-          echo ${{ env.msrv }}
           curl https://img.shields.io/badge/minimum%20rust%20version-${{ env.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
       - name: Commit Badge
         # If there are no changes to the badge this would error out. But it
