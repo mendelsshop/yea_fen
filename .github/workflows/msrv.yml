@@ -15,8 +15,10 @@ jobs:
     container: mendelrubin/cargo-msrv:latest
     steps:
       - uses: actions/checkout@v3
-      # - name: remove Cargo.toml so cargo-msrv doesn't find it
-        # run: rm Cargo.toml
+      - name: remove Cargo.toml so cargo-msrv doesn't find it
+        run: |
+          rm Cargo.toml
+          ls -l
       - uses: actions/checkout@v3
       # - name: Get MSRV and create badge
         # echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
@@ -25,13 +27,15 @@ jobs:
         #   rm Cargo.toml
         #   cd ${{ matrix.crates }}
         #   cargo msrv
-
+      - uses: spenserblack/actions-set-output@<commit-ish>
+        id: output-step
+        with:
+          variables: |
+            msrv=$(cargo msrv --output-format=minimal --write-msrv)
       - name: Create Badge
         run: |
-          rm Cargo.toml
           cd ${{ matrix.crates }}
-
-          curl "https://img.shields.io/badge/minimum%20rust%20version-$(cargo msrv --output-format=minimal --write-msrv)-blue.svg" > ../resources/${{ matrix.crates }}_msrv.svg
+          curl https://img.shields.io/badge/minimum%20rust%20version-${{ steps.output-step.outputs.msrv }}-blue.svg > resources/${{ matrix.crates }}_msrv.svg
       - name: Commit Badge
         # If there are no changes to the badge this would error out. But it
         # isn't a problem if there were no changes, so errors are allowed.
