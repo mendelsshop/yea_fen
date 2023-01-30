@@ -13,6 +13,7 @@ jobs:
       - name: Install cargo-msrv
         run: cargo install cargo-msrv --git https://github.com/foresterre/cargo-msrv.git --branch main
   create-msrv-badge:
+    needs: install-cargo-msrv
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,8 +29,6 @@ jobs:
       - name: Get MSRV
         id: get-msrv
         run: |
-          # echo "::set-output name=msrv::$(cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)"
-          # run: echo "{name}={value}" >> $GITHUB_OUTPUT
           echo "msrv=$(cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)" >> $GITHUB_ENV
 
       - name: Create Badge
