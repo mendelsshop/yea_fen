@@ -19,6 +19,7 @@ jobs:
       - name: Get MSRV and create badge
         id: get-msrv
         run: |
+          cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml
           echo "msrv=$(cargo msrv --manifest-path ${{ matrix.crates }}/Cargo.toml)" >> $GITHUB_OUTPUT
       - name: Create Badge
         run: |
