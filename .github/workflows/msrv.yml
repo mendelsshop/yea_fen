@@ -7,7 +7,6 @@ on:
 
 jobs:
   create-msrv-badge:
-    needs: install-cargo-msrv
     runs-on: ubuntu-latest
     container: foresterre/cargo-msrv
     strategy:
