@@ -27,6 +27,7 @@ jobs:
         continue-on-error: true
         run: |
           git pull
+          echo "MSRV: ${{ env.msrv }}"
           echo ${{ env.msrv }}
           git add resources/${{ matrix.crates }}_msrv.svg
           git add ${{ matrix.crates }}/Cargo.toml
