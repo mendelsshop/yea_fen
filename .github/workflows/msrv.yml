@@ -27,7 +27,8 @@ jobs:
           rm Cargo.toml
         
           cd ${{ matrix.crates }}
-          echo "msrv=$(cargo msrv --output-format=minimal --write-msrv)" >> $GITHUB_OUTPUT
+          ls -l
+          echo "msrv=$(cargo msrv)" >> $GITHUB_OUTPUT
         #   cargo msrv
       # - uses: spenserblack/actions-set-output@v1
       #   id: output-step
