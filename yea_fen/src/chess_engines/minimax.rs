@@ -9,7 +9,7 @@ use crate::{
     Color, Colored, GameState, Piece, Pos,
 };
 
-use super::{get_capture_piece_value, quiescence};
+use super::{get_capture_piece_value, quiescence, quiescence_turn};
 
 pub fn minimax(
     game: &mut GameState,
@@ -181,23 +181,24 @@ fn negamax_alpha_beta(
 ) {
     if depth == 0 || game.get_gameresult() != GameResult::InProgress {
         // println!("quiescence at depth {}", depth);
-        // return (
-        //     turn_multiplier * quiescence(
-        //         game,
-        //         alpha,
-        //         beta,
-        //         mate - 1,
-        //         GameState::tapered_eval_board,
-        //     ),
-        //     bm,
-        //     Vec::new(),
-        // );
-
         return (
-            turn_multiplier * GameState::tapered_eval_board(game, mate - 1),
+            quiescence_turn(
+                game,
+                alpha,
+                beta,
+                mate - 1,
+                turn_multiplier,
+                GameState::tapered_eval_board,
+            ),
             bm,
             Vec::new(),
         );
+
+        // return (
+        //     turn_multiplier * GameState::tapered_eval_board(game, mate - 1),
+        //     bm,
+        //     Vec::new(),
+        // );
     }
 
     let mut nodes = Vec::new();

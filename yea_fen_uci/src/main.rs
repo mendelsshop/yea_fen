@@ -17,7 +17,7 @@ fn main() {
     let mut input = String::new();
     // let mut done = String::new();
     let mut gs = GameState::new();
-    let mut best_move: Option<(String)> = None;
+    let mut best_move: Option<String> = None;
     // let (tx_go, rx_go) = std::sync::mpsc::channel::<Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)>>();
     // let (tx_set, rx_set) = std::sync::mpsc::channel();
     // let mut set = false;
@@ -233,10 +233,10 @@ fn get_move(
         None
     } else {
         match promotion.chars().next().unwrap() {
-            'q' => Some((Piece::Queen)),
-            'r' => Some((Piece::Rook)),
-            'b' => Some((Piece::Bishop)),
-            'n' => Some((Piece::Knight)),
+            'q' => Some(Piece::Queen),
+            'r' => Some(Piece::Rook),
+            'b' => Some(Piece::Bishop),
+            'n' => Some(Piece::Knight),
 
             _ => None,
         }
