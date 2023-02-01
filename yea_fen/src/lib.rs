@@ -135,7 +135,7 @@ impl fmt::Display for Colored<Piece> {
 
 type Row = [Option<Colored<Piece>>; 8];
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// A chess board
 pub struct Board {
     board: [Row; 8],
@@ -253,7 +253,7 @@ impl fmt::Display for Board {
         write!(f, "{}", self.format_with_color(Color::White))
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// The Colors of chess used to determine the current player among other things
 pub enum Color {
     Black,
@@ -279,7 +279,7 @@ pub enum Castling {
     Both,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// The state of a game
 /// icludes the board, current player, number of moves taken, and other FEN related metadata
 pub struct GameState {
@@ -307,7 +307,7 @@ pub struct GameState {
     pub(crate) check_draws: bool,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 /// The castling option for both player
 pub struct CastlingOptions {
     black: Castling,

@@ -131,7 +131,7 @@ impl MoveType<Pos, Colored<Piece>> {
         )
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Move {
     pub(crate) move_type: MoveType<Pos, Colored<Piece>>,
     pub(crate) en_passant: Option<Pos>,
@@ -310,7 +310,7 @@ impl Pos {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum GameResult {
     /// the color of the player that lost
     CheckMate(Color),

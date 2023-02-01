@@ -67,55 +67,8 @@ const fn get_capture_piece_value(piece: Piece) -> i32 {
     }
 }
 
-fn quiescence(
-    game: &mut GameState,
-    mut alpha: i32,
-    beta: i32,
-    mate: i32,
-    eval: fn(&GameState, i32) -> i32,
-) -> i32 {
-    let stand_pat = eval(game, mate);
-
-    if stand_pat >= beta {
-        return beta;
-    }
-    if alpha < stand_pat {
-        alpha = stand_pat;
-    }
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
-    };
-    let binding = game.new_all_valid_moves(game.active_color);
-    let moves = binding
-        .iter()
-        .filter(|mv| {
-            matches!(
-                mv,
-                MoveType::CapturePromotion { .. }
-                    | MoveType::Capture { .. }
-                    | MoveType::EnPassant { .. }
-            )
-        })
-        .collect::<Vec<_>>();
-    for r#move in &moves {
-        if game.do_move(**r#move, Some(prom)) {
-            let score = -quiescence(game, -beta, -alpha, mate - 1, eval);
-            game.undo_move();
-            if score >= beta {
-                return score;
-            }
-            if score > alpha {
-                alpha = score;
-            }
-        }
-    }
-
-    alpha
-}
-
 #[allow(dead_code)]
-fn quiescence_turn(
+fn quiescence(
     game: &mut GameState,
     mut alpha: i32,
     beta: i32,
@@ -149,7 +102,7 @@ fn quiescence_turn(
         .collect::<Vec<_>>();
     for r#move in &moves {
         if game.do_move(**r#move, Some(prom)) {
-            let score = -quiescence_turn(game, -beta, -alpha, mate - 1, -turn_multiplier, eval);
+            let score = -quiescence(game, -beta, -alpha, mate - 1, -turn_multiplier, eval);
             game.undo_move();
             if score >= beta {
                 return score;
