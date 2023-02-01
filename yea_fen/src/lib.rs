@@ -698,7 +698,32 @@ impl Pos {
     pub const fn get_column_char(self) -> char {
         (self.column + 96) as char
     }
+
+    // gets the index of the of the position in the board array 0 - 120 a1 = 0 and h8 = 120
+    pub const fn get_index(self) -> usize {
+        (((self.row -1) * 16) + self.column -1) as usize
+    }
+
+    /// returns the position from index
+    pub fn from_index(mut index: usize) -> Self {
+        // note that index is 0 based and can go up 119
+        if index >= 63 {
+            while index  > 63 {
+                // println!("index: {}", index);
+                index -= 63;
+
+            }
+
+        }
+        assert!(index < 120, "index out of bounds");
+        // the row and column are 1 based and go from 1 to 8
+        let row = (index / 8) as u8 + 1;
+        let column = (index % 8) as u8 + 1;
+        Self { row, column }
+
+    }
 }
+
 
 impl fmt::Display for Pos {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

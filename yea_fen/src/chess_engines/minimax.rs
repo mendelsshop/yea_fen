@@ -9,7 +9,7 @@ use crate::{
     Color, Colored, GameState, Piece, Pos, Board,
 };
 
-use super::{get_capture_piece_value, quiescence};
+use super::{get_capture_piece_value, quiescence, HashEntry, Flag, Zobrist};
 
 pub fn minimax(
     game: &mut GameState,
@@ -171,12 +171,13 @@ struct Node {
 }
 
 struct Search {
-    hash: HashMap<(Board, i32), i32>,
+    hash: HashMap<u64, HashEntry>,
     depth: usize,
     // alpha: i32,
     // beta: i32,
     node_count: usize,
     time: Duration,
+    zobrist: Zobrist,
 }
 
 impl Search {
@@ -188,6 +189,7 @@ impl Search {
             // beta: i32::MAX,
             node_count: 0,
             time: Duration::new(time, nanos),
+            zobrist: Zobrist::new_zobrist()
             
         }
     }
@@ -241,8 +243,15 @@ impl Search {
     }
 
     fn negamax(&mut self, game: &mut GameState, depth: i32, mut alpha: i32, beta: i32, turn_multiplier: i32) -> i32 {
-        if let Some(score) = self.hash.get(&(game.board, depth)) {
-            return *score;
+
+        if let Some(score) = self.hash.get(&self.zobrist.get_zobrist(game)) {
+match score.flag {
+                Flag::Exact => return score.eval,
+                Flag::LowerBound => alpha = alpha.max(score.eval),
+                Flag::UpperBound => if score.eval <= alpha {
+                    return alpha;
+                }
+            }
         }
         if depth == 0 || game.get_gameresult() != GameResult::InProgress {
             return turn_multiplier * GameState::tapered_eval_board(game, i32::MAX);
@@ -255,7 +264,7 @@ impl Search {
             if game.do_move(*r#move, None) {
                 self.node_count += 1;
                 let mut score = -self.negamax(game, depth - 1, -beta, -alpha, -turn_multiplier);
-                self.hash.insert((game.board, depth), score);
+                // self.hash.insert((game.board, depth), score);
                 game.undo_move();
                 if game.check_repition().is_some() {
                     score = 0;
@@ -268,6 +277,19 @@ impl Search {
                 }
             }
         }
+       self.hash.insert(self.zobrist.get_zobrist(game), HashEntry {
+            depth,
+            best_move: None,
+            eval: best_score,
+            flag: if best_score <= alpha {
+                Flag::UpperBound
+            } else if best_score >= beta {
+                Flag::LowerBound
+            } else {
+                Flag::Exact
+            },
+            ancient: 0,
+        });
         best_score
     }
 
