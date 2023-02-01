@@ -105,8 +105,8 @@ fn max(
     turn_multiplier: i32
 ) -> i32 {
     if depth == 0 || game.get_gameresult() != GameResult::InProgress {
-        // return quiescence(game, alpha, beta, mate, GameState::tapered_eval_board);
-        return GameState::tapered_eval_board(game, mate);
+        return turn_multiplier * quiescence(game, alpha, beta, mate, turn_multiplier,GameState::tapered_eval_board, );
+        // return turn_multiplier * GameState::tapered_eval_board(game, mate);
     }
     let prom = match game.active_color {
         Color::Black => Colored::Black(Piece::Queen),
@@ -139,7 +139,8 @@ fn min(
     turn_multiplier: i32
 ) -> i32 {
     if depth == 0 || game.get_gameresult() != GameResult::InProgress {
-        let score = turn_multiplier * GameState::tapered_eval_board(game, mate);
+        // let score = turn_multiplier * GameState::tapered_eval_board(game, mate);
+        let score = turn_multiplier * quiescence(game, alpha, beta, mate, turn_multiplier,GameState::tapered_eval_board, );
         return -score;
     }
     let prom = match game.active_color {
@@ -174,38 +175,30 @@ fn negamax_alpha_beta(
     depth: usize,
     mut alpha: i32,
     beta: i32,
-    mut bm: Option<(MoveType<Pos, Colored<Piece>>, Colored<Piece>)>,
     turn_multiplier: i32,
     mate: i32,
-) -> (
-    i32,
-    Option<(MoveType<Pos, Colored<Piece>>, Colored<Piece>)>,
-    // Vec<Node>,
-) {
+) -> 
+    i32
+     {
     if depth == 0 || game.get_gameresult() != GameResult::InProgress {
         // println!("quiescence at depth {}", depth);
-        return (
-            turn_multiplier * quiescence(
-                game,
-                alpha,
-                beta,
-                mate - 1,
-                turn_multiplier,
-                GameState::tapered_eval_board,
-            ),
-            bm,
-            // Vec::new(),
-        );
+        // return 
+        //     turn_multiplier * quiescence(
+        //         game,
+        //         alpha,
+        //         beta,
+        //         mate - 1,
+        //         turn_multiplier,
+        //         GameState::tapered_eval_board,
+        //     )
+        //     // bm,
+        //     // Vec::new(),
+        // ;
 
-        // return (
-        //     turn_multiplier * GameState::tapered_eval_board(game, mate - 1),
-        //     bm,
-        //     Vec::new(),
-        // );
+        return turn_multiplier * GameState::tapered_eval_board(game, mate - 1);
     }
 
-    // let mut nodes = Vec::new();
-    let mut maxscore = (-mate, None);
+    let mut value = -mate;
     let moves = sort_moves(game.new_all_valid_moves(game.active_color));
     for (_idx, r#move) in moves.iter().enumerate() {
         let mut promotions = vec![];
@@ -218,38 +211,24 @@ fn negamax_alpha_beta(
         let mut should_break = false;
         for prom in promotions {
             if game.do_move(*r#move, Some(prom)) {
-                bm = Some((*r#move, prom));
-
-                let (score, _, 
-                    // children
-                ) = negamax_alpha_beta(
+                let mut score = negamax_alpha_beta(
                     game,
                     depth - 1,
                     -beta,
                     -alpha,
-                    bm,
                     -turn_multiplier,
                     mate - 1,
                 );
-                let score = if game.check_repition() == Some(()) {
+                score = if game.check_repition() == Some(()) {
                     0
                 } else {
-                    -score
+                    -1 * score
                 };
-                // nodes.push(Node {
-                //     score,
-                //     move_: format!("{}{}", r#move.from().0, r#move.to()),
-                //     children,
-                // });
                 if !game.undo_move() {
                     println!("undo_move failed");
                 }
-                if score > maxscore.0 {
-                    maxscore = (score, Some((*r#move, prom)));
-                }
-                if maxscore.0 > alpha {
-                    alpha = maxscore.0;
-                }
+                value = value.max(score);
+                alpha = alpha.max(value);
                 if alpha >= beta {
                     should_break = true;
                     break;
@@ -260,37 +239,147 @@ fn negamax_alpha_beta(
             break;
         }
     }
-    if maxscore.1.is_none() {
-        maxscore.1 = bm;
-    }
-    (maxscore.0, maxscore.1, 
-        // nodes
-    )
+    alpha
 }
 
 pub fn negamax(
-    game: &GameState,
+    game: &mut GameState,
     depth: usize,
-) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
-    let mut game = game.clone();
-    let prom = match game.active_color {
-        Color::Black => Colored::Black(Piece::Queen),
-        Color::White => Colored::White(Piece::Queen),
+    mut alpha: i32,
+    beta: i32,
+    // mut bm: Option<(MoveType<Pos, Colored<Piece>>, Colored<Piece>)>,
+    turn_multiplier: i32,
+    mate: i32,
+) -> (Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)>, i32) {
+    if depth == 0 || game.get_gameresult() != GameResult::InProgress {
+        // println!("quiescence at depth {}", depth);
+        // return (
+        //     None,
+        //     turn_multiplier * quiescence(
+        //         game,
+        //         alpha,
+        //         beta,
+        //         mate - 1,
+        //         turn_multiplier,
+        //         GameState::tapered_eval_board,
+        //     ),
+        //     // bm,
+        //     // Vec::new(),
+        // );
+
+        return (
+            None,
+            turn_multiplier * GameState::tapered_eval_board(game, mate - 1),
+        //     bm,
+        //     Vec::new(),
+        );
+    }
+
+    let moves = sort_moves(game.new_all_valid_moves(game.active_color));
+    let mut value = i32::MIN; 
+    let mut bm = match  moves.iter().next().map(|bm| (*bm, None, 0)) {
+        Some(bm) => bm,
+        None => return (None, value),
     };
+    for r#move in moves {
+        let mut should_break = false;
+        let mut promotions = vec![];
+        promotions.push(Colored::new(game.active_color, Piece::Queen));
+        if let MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } = r#move {
+            promotions.push(Colored::new(game.active_color, Piece::Bishop));
+            promotions.push(Colored::new(game.active_color, Piece::Knight));
+            promotions.push(Colored::new(game.active_color, Piece::Rook));
+        }
+        for prom in promotions {
+            if game.do_move(r#move, Some(prom)) {
+                let v = negamax(
+                    game,
+                    depth - 1,
+                    -mate,
+                    mate,
+                    -turn_multiplier,
+                    mate - 1,
+                );
+                    let scored = if game.check_repition() == Some(()) {
+                        0
+                    } else {
+                        -v.1
+                    };
+                    value = value.max(scored);
+                    alpha = alpha.max(value);
+                    if alpha >= beta {
+                        should_break = true;
+                        bm = (r#move, Some(prom), value);
+                        break;
+                    }
+                if !game.undo_move() {
+                    println!("undo_move failed");
+                }
+            }
+        }
+        if should_break {
+            break;
+        }
+    }
+
+    let r#move = bm;
+    match r#move.0 {
+        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => (Some((r#move.0, r#move.1)), r#move.2),
+        _ => (Some((r#move.0, r#move.1)), r#move.2),
+    }
+}
+
+pub fn negamax_root(game: &GameState, depth: usize) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
     let mate = i32::MAX;
     let color = match game.active_color {
         Color::Black => -1,
         Color::White => 1,
     };
-    let (_, bm,
-        //  _
-        ) = negamax_alpha_beta(&mut game, depth, -mate, mate, None, color, mate);
+    let mut game = game.clone();
+    let moves = sort_moves(game.new_all_valid_moves(game.active_color));
+    let mut value = i32::MIN;
+    let mut bm =moves.iter().next().map(|bm| (*bm, None))?;
+    let mut alpha = i32::MIN;
+    let beta = i32::MAX;
 
-    let r#move = bm.map(|m| (m.0, Some(m.1)))?;
-    Some(match r#move.0 {
-        MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } => r#move,
-        _ => (r#move.0, None),
-    })
+    for r#move in moves {
+        let mut should_break = false;
+        let mut promotions = vec![];
+        promotions.push(Colored::new(game.active_color, Piece::Queen));
+        if let MoveType::MovePromotion { .. } | MoveType::CapturePromotion { .. } = r#move {
+            promotions.push(Colored::new(game.active_color, Piece::Bishop));
+            promotions.push(Colored::new(game.active_color, Piece::Knight));
+            promotions.push(Colored::new(game.active_color, Piece::Rook));
+        }
+        for prom in promotions {
+            if game.do_move(r#move, Some(prom)) {
+                let mut score = -1 *negamax_alpha_beta(&mut game, depth, -beta, -alpha, -color, mate - 1);
+                if game.check_repition() == Some(()) {
+                    score = 0;
+                }
+                if !game.undo_move() {
+                    println!("undo_move failed");
+                }
+                if score > value {
+                    value = score;
+                    bm = (r#move, Some(prom));
+                }
+                alpha = alpha.max(value);
+                if alpha >= beta {
+                    should_break = true;
+                    break;
+                }
+
+
+            }
+        }
+        if should_break {
+            break;
+        }
+    }
+
+    Some(bm)
+        // .map(|(r#move, prom, _)| (r#move, prom))
 }
 
 fn sort_moves(moves: HashSet<MoveType<Pos, Colored<Piece>>>) -> Vec<MoveType<Pos, Colored<Piece>>> {
@@ -391,7 +480,7 @@ mod tests {
         println!("minimax at depth of 1 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax(&mut gs, 1);
+        let ne1 = negamax_root(&mut gs, 1);
         println!("negamax at depth of 1 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", ne1);
         let now = Instant::now();
@@ -399,7 +488,7 @@ mod tests {
         println!("minimax at depth of 4 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax(&mut gs, 4);
+        let ne1 = negamax_root(&mut gs, 4);
         println!("negamax at depth of 4 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", ne1);
 
@@ -408,7 +497,7 @@ mod tests {
         println!("minimax at depth of 8 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax(&mut gs, 8);
+        let ne1 = negamax_root(&mut gs, 8);
         println!("negamax at depth of 8 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", ne1);
 
@@ -421,7 +510,7 @@ mod tests {
         );
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax(&mut gs, 12);
+        let ne1 = negamax_root(&mut gs, 12);
         println!(
             "negamax at depth of 12 took {}ms",
             now.elapsed().as_millis()
@@ -436,7 +525,7 @@ mod tests {
         );
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax(&mut gs, 16);
+        let ne1 = negamax_root(&mut gs, 16);
         println!(
             "negamax at depth of 16 took {}ms",
             now.elapsed().as_millis()
@@ -451,7 +540,7 @@ mod tests {
         );
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax(&mut gs, 20);
+        let ne1 = negamax_root(&mut gs, 20);
         println!(
             "negamax at depth of 20 took {}ms",
             now.elapsed().as_millis()

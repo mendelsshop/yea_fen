@@ -72,7 +72,7 @@ fn main() {
                     "{}",
                     make_info(format!("going for color {:?}", gs.get_active_color()).as_str())
                 );
-                if let Some((m, p)) = minimax::negamax(&mut gs, 4) {
+                if let Some((m, p)) = minimax::minimax(&mut gs, 4) {
                     let p = if let Some(p) = p {
                         println!(
                             "{}",
