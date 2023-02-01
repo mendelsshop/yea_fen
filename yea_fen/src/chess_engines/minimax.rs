@@ -1,12 +1,12 @@
 // https://www.youtube.com/wa tch?v=DpXy041BIlA
 // at around 18:33 / 42:35
 
-use std::collections::HashSet;
+use std::{collections::{HashSet, HashMap}, time::{Instant, Duration}};
 
 use crate::{
     chess_engines::pick_random,
     moves::{GameResult, MoveType},
-    Color, Colored, GameState, Piece, Pos,
+    Color, Colored, GameState, Piece, Pos, Board,
 };
 
 use super::{get_capture_piece_value, quiescence};
@@ -168,6 +168,138 @@ struct Node {
     score: i32,
     move_: String,
     children: Vec<Node>,
+}
+
+struct Search {
+    hash: HashMap<(Board, i32), i32>,
+    depth: usize,
+    // alpha: i32,
+    // beta: i32,
+    node_count: usize,
+    time: Duration,
+}
+
+impl Search {
+    pub fn new(time: u64, nanos: u32) -> Self {
+        Self {
+            hash: HashMap::new(),
+            depth: 1,
+            // alpha: i32::MIN,
+            // beta: i32::MAX,
+            node_count: 0,
+            time: Duration::new(time, nanos),
+            
+        }
+    }
+
+    pub fn search(&mut self, gs: &GameState) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)>  {
+        let mut best_move = self.root_search(gs);
+        let start = Instant::now();
+        for i in 1..1000 {
+            if start.elapsed() > self.time {
+                break;
+            }
+            self.depth = i;
+            let r#move = self.root_search(gs);
+            if r#move.is_some() {
+                best_move = r#move;
+            }
+        }
+        println!("{} nodes searched", self.node_count);
+        println!("{} depth searched", self.depth);
+        best_move
+
+        
+    }
+
+    fn root_search(&mut self, gs: &GameState) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)> {
+        let mut game = gs.clone();
+        let moves = sort_moves(game.new_all_valid_moves(game.active_color));
+        let mut best_move = None;
+        let mut best_score = i32::MIN;
+        let mut alpha = i32::MIN;
+        let turn_multiplier = if game.active_color == Color::White { 1 } else { -1 };
+        for r#move in &moves {
+            if game.do_move(*r#move, None) {
+                self.node_count += 1;
+                let mut score = -self.negamax(&mut game, (self.depth - 1) as i32, -i32::MAX, -alpha, turn_multiplier);
+                game.undo_move();
+                if game.check_repition().is_some() {
+                    score = 0;
+                }
+                if score > best_score {
+                    best_score = score;
+                    best_move = Some(*r#move);
+                }
+                alpha = alpha.max(score);
+                if score >= i32::MAX {
+                    break;
+                }
+            }
+        }
+        best_move.map(|r#move| (r#move, None))
+    }
+
+    fn negamax(&mut self, game: &mut GameState, depth: i32, mut alpha: i32, beta: i32, turn_multiplier: i32) -> i32 {
+        if let Some(score) = self.hash.get(&(game.board, depth)) {
+            return *score;
+        }
+        if depth == 0 || game.get_gameresult() != GameResult::InProgress {
+            return turn_multiplier * GameState::tapered_eval_board(game, i32::MAX);
+            // return turn_multiplier * quiescence(game, alpha, beta, i32::MAX, turn_multiplier,GameState::tapered_eval_board, );
+            // return turn_multiplier * self.quiescence(depth, game, alpha, beta, turn_multiplier);
+        }
+        let mut best_score = i32::MIN;
+        let moves = sort_moves(game.new_all_valid_moves(game.active_color));
+        for r#move in &moves {
+            if game.do_move(*r#move, None) {
+                self.node_count += 1;
+                let mut score = -self.negamax(game, depth - 1, -beta, -alpha, -turn_multiplier);
+                self.hash.insert((game.board, depth), score);
+                game.undo_move();
+                if game.check_repition().is_some() {
+                    score = 0;
+                }
+                
+                best_score = best_score.max(score);
+                alpha = alpha.max(score);
+                if alpha >= beta {
+                    break;
+                }
+            }
+        }
+        best_score
+    }
+
+    fn quiescence(&mut self, depth: i32,game: &mut GameState, mut alpha: i32, beta: i32, turn_multiplier: i32) -> i32 {
+        let stand_pat = turn_multiplier * GameState::tapered_eval_board(game, i32::MAX);
+        if stand_pat >= beta {
+            return beta;
+        }
+        if stand_pat > alpha {
+            alpha = stand_pat;
+        }
+        let moves = sort_moves(game.new_all_valid_moves(game.active_color));
+        for r#move in &moves {
+            if game.do_move(*r#move, None) {
+                let mut score = -(self.quiescence(depth + 1, game, -beta, -alpha, -turn_multiplier));
+                // self.hash.insert((game.board, depth), score);
+                game.undo_move();
+
+                if game.check_repition().is_some() {
+                    score = 0;
+                }
+                if score >= beta {
+                    return beta;
+                }
+                if score > alpha {
+                    alpha = score;
+                }
+            }
+        }
+        alpha
+    }
+
 }
 
 fn negamax_alpha_beta(
@@ -480,7 +612,8 @@ mod tests {
         println!("minimax at depth of 1 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax_root(&mut gs, 1);
+        // let ne1 = negamax_root(&mut gs, 1);
+        let ne1 = Search::new(0, 100).search(&mut gs);
         println!("negamax at depth of 1 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", ne1);
         let now = Instant::now();
@@ -488,29 +621,32 @@ mod tests {
         println!("minimax at depth of 4 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax_root(&mut gs, 4);
+        // let ne1 = negamax_root(&mut gs, 4);
+        let ne1 = Search::new(2,5 ).search(&mut gs);
         println!("negamax at depth of 4 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", ne1);
 
+        // let now = Instant::now();
+        // let mn1 = minimax(&mut gs, 8);
+        // println!("minimax at depth of 8 took {}ms", now.elapsed().as_millis());
+        // println!("move: {:?}", mn1);
         let now = Instant::now();
-        let mn1 = minimax(&mut gs, 8);
-        println!("minimax at depth of 8 took {}ms", now.elapsed().as_millis());
-        println!("move: {:?}", mn1);
-        let now = Instant::now();
-        let ne1 = negamax_root(&mut gs, 8);
+        // let ne1 = negamax_root(&mut gs, 8);
+        let ne1 = Search::new(4, 5).search(&mut gs);
         println!("negamax at depth of 8 took {}ms", now.elapsed().as_millis());
         println!("move: {:?}", ne1);
 
-        let now = Instant::now();
-        let mn1 = minimax(&mut gs, 12);
+        // let now = Instant::now();
+        // let mn1 = minimax(&mut gs, 12);
 
-        println!(
-            "minimax at depth of 12 took {}ms",
-            now.elapsed().as_millis()
-        );
-        println!("move: {:?}", mn1);
+        // println!(
+        //     "minimax at depth of 12 took {}ms",
+        //     now.elapsed().as_millis()
+        // );
+        // println!("move: {:?}", mn1);
         let now = Instant::now();
-        let ne1 = negamax_root(&mut gs, 12);
+        // let ne1 = negamax_root(&mut gs, 12);
+        let ne1 = Search::new(24, 5).search(&mut gs);
         println!(
             "negamax at depth of 12 took {}ms",
             now.elapsed().as_millis()
