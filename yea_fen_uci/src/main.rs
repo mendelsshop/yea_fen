@@ -68,11 +68,32 @@ fn main() {
                     make_info(format!("gs fen {}", gs.to_string()).as_str())
                 );
             } else if input.trim().starts_with("go") {
+                let mut depth = true;
+                let mut count = 0;
+                // see if its depth of movetime
+                if let Some(depth) = input.trim().strip_prefix("go depth ") {
+                    println!("# info depth {}", depth);
+                    count = depth.parse::<usize>().unwrap();
+                } else if let Some(movetime) = input.trim().strip_prefix("go movetime ") {
+                    println!("# info movetime {}", movetime);
+                    count = movetime.parse::<usize>().unwrap();
+                    depth = false;
+                } else {
+                    println!("# info error: no depth or movetime");
+                }
                 println!(
                     "{}",
                     make_info(format!("going for color {:?}", gs.get_active_color()).as_str())
                 );
-                if let Some((m, p)) = minimax::minimax(&mut gs, 4) {
+                let mut  search = if depth {
+                    println!("# info depth {}", count);
+                    minimax::Search::new_depth(count)
+                
+                } else {
+                    println!("# info movetime {}", count);
+                    minimax::Search::new_time(count.try_into().unwrap(), 0)
+                };
+                if let Some((m, p)) = search.search(&gs) {
                     let p = if let Some(p) = p {
                         println!(
                             "{}",

@@ -170,7 +170,7 @@ struct Node {
     children: Vec<Node>,
 }
 
-struct Search {
+pub struct Search {
     hash: HashMap<u64, HashEntry>,
     depth: usize,
     // alpha: i32,
@@ -178,24 +178,46 @@ struct Search {
     node_count: usize,
     time: Duration,
     zobrist: Zobrist,
+    time_or_depth: bool,
 }
 
 impl Search {
-    pub fn new(time: u64, nanos: u32) -> Self {
+    pub fn new_time(time: u64, nanos: u32) -> Self {
         Self {
             hash: HashMap::new(),
             depth: 1,
             // alpha: i32::MIN,
             // beta: i32::MAX,
             node_count: 0,
-            time: Duration::new(time, nanos),
-            zobrist: Zobrist::new_zobrist()
+            // time is in milliseconds
+            // duration is in seconds and nanoseconds
+            // covert time to nanoseconds
+        
+            time: Duration::new(time / 1000, 0),
+            zobrist: Zobrist::new_zobrist(),
+            time_or_depth: false,
             
+        }
+    }
+
+    pub fn new_depth(depth: usize) -> Self {
+        Self {
+            hash: HashMap::new(),
+            depth,
+            // alpha: i32::MIN,
+            // beta: i32::MAX,
+            time_or_depth: true,
+            node_count: 0,
+            time: Duration::new(0, 0),
+            zobrist: Zobrist::new_zobrist()
         }
     }
 
     pub fn search(&mut self, gs: &GameState) -> Option<(MoveType<Pos, Colored<Piece>>, Option<Colored<Piece>>)>  {
         let mut best_move = self.root_search(gs);
+        if self.time_or_depth {
+            return best_move;
+        }
         let start = Instant::now();
         for i in 1..1000 {
             if start.elapsed() > self.time {
@@ -628,81 +650,81 @@ mod tests {
 
     #[test]
     fn longest_minimax() {
-        let mut gs = GameState::new();
-        let now = Instant::now();
-        let mn1 = minimax(&mut gs, 1);
-        println!("minimax at depth of 1 took {}ms", now.elapsed().as_millis());
-        println!("move: {:?}", mn1);
-        let now = Instant::now();
-        // let ne1 = negamax_root(&mut gs, 1);
-        let ne1 = Search::new(0, 100).search(&mut gs);
-        println!("negamax at depth of 1 took {}ms", now.elapsed().as_millis());
-        println!("move: {:?}", ne1);
-        let now = Instant::now();
-        let mn1 = minimax(&mut gs, 4);
-        println!("minimax at depth of 4 took {}ms", now.elapsed().as_millis());
-        println!("move: {:?}", mn1);
-        let now = Instant::now();
-        // let ne1 = negamax_root(&mut gs, 4);
-        let ne1 = Search::new(2,5 ).search(&mut gs);
-        println!("negamax at depth of 4 took {}ms", now.elapsed().as_millis());
-        println!("move: {:?}", ne1);
-
+        // let mut gs = GameState::new();
         // let now = Instant::now();
-        // let mn1 = minimax(&mut gs, 8);
-        // println!("minimax at depth of 8 took {}ms", now.elapsed().as_millis());
+        // let mn1 = minimax(&mut gs, 1);
+        // println!("minimax at depth of 1 took {}ms", now.elapsed().as_millis());
         // println!("move: {:?}", mn1);
-        let now = Instant::now();
-        // let ne1 = negamax_root(&mut gs, 8);
-        let ne1 = Search::new(4, 5).search(&mut gs);
-        println!("negamax at depth of 8 took {}ms", now.elapsed().as_millis());
-        println!("move: {:?}", ne1);
+        // let now = Instant::now();
+        // // let ne1 = negamax_root(&mut gs, 1);
+        // let ne1 = Search::new(0, 100).search(&mut gs);
+        // println!("negamax at depth of 1 took {}ms", now.elapsed().as_millis());
+        // println!("move: {:?}", ne1);
+        // let now = Instant::now();
+        // let mn1 = minimax(&mut gs, 4);
+        // println!("minimax at depth of 4 took {}ms", now.elapsed().as_millis());
+        // println!("move: {:?}", mn1);
+        // let now = Instant::now();
+        // // let ne1 = negamax_root(&mut gs, 4);
+        // let ne1 = Search::new(2,5 ).search(&mut gs);
+        // println!("negamax at depth of 4 took {}ms", now.elapsed().as_millis());
+        // println!("move: {:?}", ne1);
+
+        // // let now = Instant::now();
+        // // let mn1 = minimax(&mut gs, 8);
+        // // println!("minimax at depth of 8 took {}ms", now.elapsed().as_millis());
+        // // println!("move: {:?}", mn1);
+        // let now = Instant::now();
+        // // let ne1 = negamax_root(&mut gs, 8);
+        // let ne1 = Search::new(4, 5).search(&mut gs);
+        // println!("negamax at depth of 8 took {}ms", now.elapsed().as_millis());
+        // println!("move: {:?}", ne1);
+
+        // // let now = Instant::now();
+        // // let mn1 = minimax(&mut gs, 12);
+
+        // // println!(
+        // //     "minimax at depth of 12 took {}ms",
+        // //     now.elapsed().as_millis()
+        // // );
+        // // println!("move: {:?}", mn1);
+        // let now = Instant::now();
+        // // let ne1 = negamax_root(&mut gs, 12);
+        // let ne1 = Search::new(24, 5).search(&mut gs);
+        // println!(
+        //     "negamax at depth of 12 took {}ms",
+        //     now.elapsed().as_millis()
+        // );
+        // println!("move: {:?}", ne1);
 
         // let now = Instant::now();
-        // let mn1 = minimax(&mut gs, 12);
-
+        // let mn1 = minimax(&mut gs, 16);
         // println!(
-        //     "minimax at depth of 12 took {}ms",
+        //     "minimax at depth of 16 took {}ms",
         //     now.elapsed().as_millis()
         // );
         // println!("move: {:?}", mn1);
-        let now = Instant::now();
-        // let ne1 = negamax_root(&mut gs, 12);
-        let ne1 = Search::new(24, 5).search(&mut gs);
-        println!(
-            "negamax at depth of 12 took {}ms",
-            now.elapsed().as_millis()
-        );
-        println!("move: {:?}", ne1);
+        // let now = Instant::now();
+        // let ne1 = negamax_root(&mut gs, 16);
+        // println!(
+        //     "negamax at depth of 16 took {}ms",
+        //     now.elapsed().as_millis()
+        // );
+        // println!("move: {:?}", ne1);
 
-        let now = Instant::now();
-        let mn1 = minimax(&mut gs, 16);
-        println!(
-            "minimax at depth of 16 took {}ms",
-            now.elapsed().as_millis()
-        );
-        println!("move: {:?}", mn1);
-        let now = Instant::now();
-        let ne1 = negamax_root(&mut gs, 16);
-        println!(
-            "negamax at depth of 16 took {}ms",
-            now.elapsed().as_millis()
-        );
-        println!("move: {:?}", ne1);
-
-        let now = Instant::now();
-        let mn1 = minimax(&mut gs, 20);
-        println!(
-            "minimax at depth of 20 took {}ms",
-            now.elapsed().as_millis()
-        );
-        println!("move: {:?}", mn1);
-        let now = Instant::now();
-        let ne1 = negamax_root(&mut gs, 20);
-        println!(
-            "negamax at depth of 20 took {}ms",
-            now.elapsed().as_millis()
-        );
-        println!("move: {:?}", ne1);
+        // let now = Instant::now();
+        // let mn1 = minimax(&mut gs, 20);
+        // println!(
+        //     "minimax at depth of 20 took {}ms",
+        //     now.elapsed().as_millis()
+        // );
+        // println!("move: {:?}", mn1);
+        // let now = Instant::now();
+        // let ne1 = negamax_root(&mut gs, 20);
+        // println!(
+        //     "negamax at depth of 20 took {}ms",
+        //     now.elapsed().as_millis()
+        // );
+        // println!("move: {:?}", ne1);
     }
 }
