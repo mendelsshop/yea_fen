@@ -179,10 +179,12 @@ pub struct Search {
     time: Duration,
     zobrist: Zobrist,
     time_or_depth: bool,
+    now: Instant,
+    break_search: bool,
 }
 
 impl Search {
-    pub fn new_time(time: u64, nanos: u32) -> Self {
+    pub fn new_time(time: u32, nanos: u32) -> Self {
         Self {
             hash: HashMap::new(),
             depth: 1,
@@ -193,9 +195,11 @@ impl Search {
             // duration is in seconds and nanoseconds
             // covert time to nanoseconds
         
-            time: Duration::new(time / 1000, 0),
+            time: Duration::new(0, time * 1_000_000 + nanos),
             zobrist: Zobrist::new_zobrist(),
             time_or_depth: false,
+            now: Instant::now(),
+            break_search: false,
             
         }
     }
@@ -209,7 +213,10 @@ impl Search {
             time_or_depth: true,
             node_count: 0,
             time: Duration::new(0, 0),
-            zobrist: Zobrist::new_zobrist()
+            zobrist: Zobrist::new_zobrist(),
+            now: Instant::now(),
+            break_search: false,
+            
         }
     }
 
@@ -218,9 +225,10 @@ impl Search {
         if self.time_or_depth {
             return best_move;
         }
-        let start = Instant::now();
+        // let start = Instant::now();
+        self.now = Instant::now();
         for i in 1..1000 {
-            if start.elapsed() > self.time {
+            if self.now.elapsed() > self.time {
                 break;
             }
             self.depth = i;
@@ -247,6 +255,11 @@ impl Search {
             if game.do_move(*r#move, None) {
                 self.node_count += 1;
                 let mut score = -self.negamax(&mut game, (self.depth - 1) as i32, -i32::MAX, -alpha, turn_multiplier);
+                if self.break_search {
+                    self.break_search = false;
+                    self.depth -= 1;
+                    return None;
+                }
                 game.undo_move();
                 if game.check_repition().is_some() {
                     score = 0;
@@ -265,7 +278,10 @@ impl Search {
     }
 
     fn negamax(&mut self, game: &mut GameState, depth: i32, mut alpha: i32, beta: i32, turn_multiplier: i32) -> i32 {
-
+        if self.now.elapsed() > self.time && !self.time_or_depth {
+            self.break_search = true;
+            return i32::MIN;
+        }
         if let Some(score) = self.hash.get(&self.zobrist.get_zobrist(game)) {
 match score.flag {
                 Flag::Exact => return score.eval,
@@ -280,6 +296,7 @@ match score.flag {
             // return turn_multiplier * quiescence(game, alpha, beta, i32::MAX, turn_multiplier,GameState::tapered_eval_board, );
             // return turn_multiplier * self.quiescence(depth, game, alpha, beta, turn_multiplier);
         }
+
         let mut best_score = i32::MIN;
         let moves = sort_moves(game.new_all_valid_moves(game.active_color));
         for r#move in &moves {
@@ -650,8 +667,11 @@ mod tests {
 
     #[test]
     fn longest_minimax() {
-        // let mut gs = GameState::new();
-        // let now = Instant::now();
+        let mut gs = GameState::new();
+        let now = Instant::now();
+        let mut search = Search::new_time(100, 0);
+        let m = search.search(&mut gs);
+        println!("longest minimax took {}ms depth {}", now.elapsed().as_millis(), search.depth);
         // let mn1 = minimax(&mut gs, 1);
         // println!("minimax at depth of 1 took {}ms", now.elapsed().as_millis());
         // println!("move: {:?}", mn1);

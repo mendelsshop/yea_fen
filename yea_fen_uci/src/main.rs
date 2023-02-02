@@ -4,7 +4,7 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use yea_fen::{chess_engines::minimax, moves::MoveType, Colored, GameState, Piece, Pos};
+use yea_fen::{chess_engines::minimax, moves::MoveType, Colored, GameState, Piece, Pos, Color};
 fn make_info(info: &str) -> String {
     info.lines()
         .map(|s| format!("# info {s}\n"))
@@ -78,8 +78,56 @@ fn main() {
                     println!("# info movetime {}", movetime);
                     count = movetime.parse::<usize>().unwrap();
                     depth = false;
-                } else {
-                    println!("# info error: no depth or movetime");
+                } 
+                else {
+                    // println!("# info error: no depth or movetime");
+                    let mut input = input.trim().strip_prefix("go ").unwrap().split_whitespace().collect::<Vec<&str>>();
+                    let time = match gs.get_active_color() {
+                        Color::White => {
+                            // geet wtime winc
+                            let mut wtime = 0;
+                            let mut winc = 0;
+                            for i in input.iter().enumerate() {
+                                if *i.1 == "wtime" {
+                                    wtime = input[i.0 + 1].parse::<usize>().unwrap();
+                                } else if *i.1 == "winc" {
+                                    winc = input[i.0 + 1].parse::<usize>().unwrap();
+                                }
+                            }
+                            (wtime, winc)
+                            
+                        }
+                        Color::Black => {
+                            // get btime binc
+                            let mut btime = 0;
+                            let mut binc = 0;
+                            for i in input.iter().enumerate() {
+                                if *i.1 == "btime" {
+                                    btime = input[i.0 + 1].parse::<usize>().unwrap();
+                                } else if *i.1 == "binc" {
+                                    binc = input[i.0 + 1].parse::<usize>().unwrap();
+                                }
+                            }
+                            (btime, binc)
+                            
+                        }
+                    };
+                    // see how many moves have been made
+                    let moves = gs.get_past_moves().len();
+                    let mut times = time.0;
+                    let mut moves_left = 40;
+                    loop {
+                        if moves_left > moves {
+                            break
+                        } else {
+                            moves_left += 10;
+                        }
+                    }
+                    moves_left -= moves;
+                    times += time.1 * moves_left;
+                    count = times / moves_left;
+                    depth = false;
+
                 }
                 println!(
                     "{}",
