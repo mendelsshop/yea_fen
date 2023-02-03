@@ -4,7 +4,7 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use yea_fen::{chess_engines::minimax, moves::MoveType, Colored, GameState, Piece, Pos, Color};
+use yea_fen::{chess_engines::minimax, moves::MoveType, Color, Colored, GameState, Piece, Pos};
 fn make_info(info: &str) -> String {
     info.lines()
         .map(|s| format!("# info {s}\n"))
@@ -69,7 +69,7 @@ fn main() {
                 );
             } else if input.trim().starts_with("go") {
                 let mut depth = true;
-                let mut count = 0;
+                let count;
                 // see if its depth of movetime
                 if let Some(depth) = input.trim().strip_prefix("go depth ") {
                     println!("# info depth {}", depth);
@@ -78,10 +78,14 @@ fn main() {
                     println!("# info movetime {}", movetime);
                     count = movetime.parse::<usize>().unwrap();
                     depth = false;
-                } 
-                else {
+                } else {
                     // println!("# info error: no depth or movetime");
-                    let mut input = input.trim().strip_prefix("go ").unwrap().split_whitespace().collect::<Vec<&str>>();
+                    let mut input = input
+                        .trim()
+                        .strip_prefix("go ")
+                        .unwrap()
+                        .split_whitespace()
+                        .collect::<Vec<&str>>();
                     let time = match gs.get_active_color() {
                         Color::White => {
                             // geet wtime winc
@@ -95,7 +99,6 @@ fn main() {
                                 }
                             }
                             (wtime, winc)
-                            
                         }
                         Color::Black => {
                             // get btime binc
@@ -103,13 +106,14 @@ fn main() {
                             let mut binc = 0;
                             for i in input.iter().enumerate() {
                                 if *i.1 == "btime" {
+                                    println!("# info btime {}", input[i.0 + 1]);
                                     btime = input[i.0 + 1].parse::<usize>().unwrap();
                                 } else if *i.1 == "binc" {
+                                    println!("# info binc {}", input[i.0 + 1]);
                                     binc = input[i.0 + 1].parse::<usize>().unwrap();
                                 }
                             }
                             (btime, binc)
-                            
                         }
                     };
                     // see how many moves have been made
@@ -118,7 +122,7 @@ fn main() {
                     let mut moves_left = 40;
                     loop {
                         if moves_left > moves {
-                            break
+                            break;
                         } else {
                             moves_left += 10;
                         }
@@ -127,16 +131,15 @@ fn main() {
                     times += time.1 * moves_left;
                     count = times / moves_left;
                     depth = false;
-
+                    println!("{} {} {} {}", moves, moves_left, times, count);
                 }
                 println!(
                     "{}",
                     make_info(format!("going for color {:?}", gs.get_active_color()).as_str())
                 );
-                let mut  search = if depth {
+                let mut search = if depth {
                     println!("# info depth {}", count);
                     minimax::Search::new_depth(count)
-                
                 } else {
                     println!("# info movetime {}", count);
                     minimax::Search::new_time(count.try_into().unwrap(), 0)
@@ -202,8 +205,6 @@ fn set_position(pos_str: &str, current_moves: &mut Vec<String>, gs: &mut GameSta
                     if let Some("moves") = split_str.next() {
                         // do nothing
                     } else {
-                        println!("# info error \"moves\" not found after \"startpos\"");
-                        // return;
                     }
                 }
                 "fen" => {

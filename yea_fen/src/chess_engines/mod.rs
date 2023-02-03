@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     moves::{self, MoveType},
-    Color, Colored, GameState, Piece, Pos, Castling,
+    Castling, Color, Colored, GameState, Piece, Pos,
 };
 
 pub mod eval;
@@ -54,7 +54,8 @@ fn promotion(
 
 fn pick_random<T>(items: &Vec<T>) -> Option<&T> {
     let rng = random()?.checked_rem(items.len())?;
-    items.get(rng)}
+    items.get(rng)
+}
 
 use std::ops::{AddAssign, MulAssign};
 
@@ -114,7 +115,7 @@ impl Zobrist {
     pub fn new_zobrist() -> Self {
         // set  random values
         let mut rand = LCGRng::new(0);
-        let mut pieces: [[[u64;128];2];6] = [[[0;128];2];6];
+        let mut pieces: [[[u64; 128]; 2]; 6] = [[[0; 128]; 2]; 6];
         let mut black_castling: [u64; 4] = [0; 4];
         let mut white_castling: [u64; 4] = [0; 4];
         let mut en_passant: [u64; 128] = [0; 128];
@@ -134,7 +135,13 @@ impl Zobrist {
             }
         }
         active_color = rand.next();
-        Zobrist { pieces, black_castling, white_castling, en_passant, active_color }
+        Zobrist {
+            pieces,
+            black_castling,
+            white_castling,
+            en_passant,
+            active_color,
+        }
     }
 
     pub fn get_zobrist(&self, game: &GameState) -> u64 {
@@ -167,7 +174,7 @@ impl Zobrist {
         }
         if game.castling_moves.black == Castling::QueenSide {
             zobrist ^= self.black_castling[1];
-        }   
+        }
         if game.castling_moves.white == Castling::KingSide {
             zobrist ^= self.white_castling[0];
         }
@@ -198,19 +205,34 @@ mod tests {
         // in game 1 move paawn at b2 to b4
         let moves = game.new_all_valid_moves(game.active_color);
         // get the move
-        let move1 =  moves.iter().find(|x| x.from().0 == Pos::from_str("b2").unwrap() && x.to() == Pos::from_str("b4").unwrap()).unwrap();
+        let move1 = moves
+            .iter()
+            .find(|x| {
+                x.from().0 == Pos::from_str("b2").unwrap() && x.to() == Pos::from_str("b4").unwrap()
+            })
+            .unwrap();
         // make the move
         game.do_move(*move1, None);
         // in game 1 move b7 to b5
         let moves = game.new_all_valid_moves(game.active_color);
         // get the move
-        let move1 =  moves.iter().find(|x| x.from().0 == Pos::from_str("b7").unwrap() && x.to() == Pos::from_str("b5").unwrap()).unwrap();
+        let move1 = moves
+            .iter()
+            .find(|x| {
+                x.from().0 == Pos::from_str("b7").unwrap() && x.to() == Pos::from_str("b5").unwrap()
+            })
+            .unwrap();
         // make the move
         game.do_move(*move1, None);
         // in game 1 move paawn at c2 to c4
         let moves = game.new_all_valid_moves(game.active_color);
         // get the move
-        let move1 =  moves.iter().find(|x| x.from().0 == Pos::from_str("c2").unwrap() && x.to() == Pos::from_str("c4").unwrap()).unwrap();
+        let move1 = moves
+            .iter()
+            .find(|x| {
+                x.from().0 == Pos::from_str("c2").unwrap() && x.to() == Pos::from_str("c4").unwrap()
+            })
+            .unwrap();
         // make the move
         game.do_move(*move1, None);
 
@@ -219,19 +241,34 @@ mod tests {
         // in game 2 move paawn at c2 to c4
         let moves = game2.new_all_valid_moves(game2.active_color);
         // get the move
-        let move1 =  moves.iter().find(|x| x.from().0 == Pos::from_str("c2").unwrap() && x.to() == Pos::from_str("c4").unwrap()).unwrap();
+        let move1 = moves
+            .iter()
+            .find(|x| {
+                x.from().0 == Pos::from_str("c2").unwrap() && x.to() == Pos::from_str("c4").unwrap()
+            })
+            .unwrap();
         // make the move
         game2.do_move(*move1, None);
         // in game 2 move b7 to b5
         let moves = game2.new_all_valid_moves(game2.active_color);
         // get the move
-        let move1 =  moves.iter().find(|x| x.from().0 == Pos::from_str("b7").unwrap() && x.to() == Pos::from_str("b5").unwrap()).unwrap();
-        // make the move    
+        let move1 = moves
+            .iter()
+            .find(|x| {
+                x.from().0 == Pos::from_str("b7").unwrap() && x.to() == Pos::from_str("b5").unwrap()
+            })
+            .unwrap();
+        // make the move
         game2.do_move(*move1, None);
         // in game 2 move paawn at b2 to b4
         let moves = game2.new_all_valid_moves(game2.active_color);
         // get the move
-        let move1 =  moves.iter().find(|x| x.from().0 == Pos::from_str("b2").unwrap() && x.to() == Pos::from_str("b4").unwrap()).unwrap();
+        let move1 = moves
+            .iter()
+            .find(|x| {
+                x.from().0 == Pos::from_str("b2").unwrap() && x.to() == Pos::from_str("b4").unwrap()
+            })
+            .unwrap();
         // make the move
         game2.do_move(*move1, None);
 
@@ -243,8 +280,8 @@ mod tests {
 
 pub enum Flag {
     Exact,
-    LowerBound,
-    UpperBound,
+    Alpha,
+    Beta,
 }
 #[allow(dead_code)]
 fn quiescence(
