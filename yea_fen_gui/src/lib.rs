@@ -16,7 +16,10 @@ use std::{
     time::Duration,
 };
 use wigets::ImageButton;
-use yea_fen::chess_engines::minimax::{negamax, negamax_root};
+use yea_fen::chess_engines::{
+    minimax::{negamax, negamax_root},
+    simple_ai,
+};
 pub mod wigets;
 use yea_fen::{
     chess_engines::{
@@ -829,12 +832,18 @@ pub fn threads(
                     Computer::RandomMaximizeCapture => random_maximize_capture(&mut gamestate),
                     Computer::Minimax(depth) => {
                         println!("color {color:?} depth {}", depth);
-                        negamax_root(&mut gamestate, depth)
+                        simple_ai::Searcher::new()
+                            .start_search_depth(&gamestate, depth)
+                            .map(|m| match m {
+                                simple_ai::Move::Normal(m) => (m, None),
+                                simple_ai::Move::Promotion(m, p) => (m, Some(p)),
+                            })
                     }
                 };
                 println!("doing move");
                 {
                     if let Some(r#move) = r#move {
+                        println!("bm {}", r#move.0);
                         if gamestate.do_move(r#move.0, r#move.1) {
                             println!("computer moved {}", r#move.0);
                             let send_c = match color {
@@ -855,7 +864,7 @@ pub fn threads(
                         for r#move in gamestate.get_past_moves() {
                             println!("{}", r#move.get_type());
                         }
-                        println!("could not move");
+                        println!("could not move no move provided");
                     }
                 }
             }

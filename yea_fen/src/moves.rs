@@ -130,6 +130,13 @@ impl MoveType<Pos, Colored<Piece>> {
             Self::MovePromotion { .. } | Self::CapturePromotion { .. }
         )
     }
+
+    pub const fn is_capture(&self) -> bool {
+        matches!(
+            self,
+            Self::Capture { .. } | Self::CapturePromotion { .. } | Self::EnPassant { .. }
+        )
+    }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Move {

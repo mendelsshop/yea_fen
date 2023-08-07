@@ -5,8 +5,11 @@ use std::{
 };
 
 use yea_fen::{
-    chess_engines::{minimax, simple_ai::Searcher},
-    moves::MoveType,
+    chess_engines::{
+        minimax,
+        simple_ai::{self, Searcher},
+    },
+    moves::{Move, MoveType},
     Color, Colored, GameState, Piece, Pos,
 };
 fn make_info(info: &str) -> String {
@@ -141,35 +144,37 @@ fn main() {
                     "{}",
                     make_info(format!("going for color {:?}", gs.get_active_color()).as_str())
                 );
-                let mut search = if depth {
+                let mut r#move = if depth {
                     println!("# info depth {}", count);
-                    minimax::Search::new_depth(count)
+                    Searcher::new().start_search_depth(&gs, count)
                 } else {
                     println!("# info movetime {}", count);
-                    minimax::Search::new_time(count.try_into().unwrap(), 0)
+                    Searcher::new().start_search_time(&gs, count as u64)
                 };
-                if let Some((m, p)) = search.search(&gs) {
-                    let mut s = Searcher::new();
-                    s.search(&mut gs);
-                    let p = if let Some(p) = p {
-                        println!(
-                            "{}",
-                            make_info(format!("prom piece: {:?} move {:?}", p, m).as_str())
-                        );
-                        match p {
-                            Colored::Black(Piece::Queen) => Some('q'),
-                            Colored::Black(Piece::Rook) => Some('r'),
-                            Colored::Black(Piece::Bishop) => Some('b'),
-                            Colored::Black(Piece::Knight) => Some('n'),
-                            Colored::White(Piece::Queen) => Some('Q'),
-                            Colored::White(Piece::Rook) => Some('R'),
-                            Colored::White(Piece::Bishop) => Some('B'),
-                            Colored::White(Piece::Knight) => Some('N'),
+                if let Some(r#move) = r#move {
+                    let (m, p) = match r#move {
+                        simple_ai::Move::Promotion(m, p) => {
+                            println!(
+                                "{}",
+                                make_info(format!("prom piece: {:?} move {:?}", p, m).as_str())
+                            );
+                            (
+                                m,
+                                match p {
+                                    Colored::Black(Piece::Queen) => Some('q'),
+                                    Colored::Black(Piece::Rook) => Some('r'),
+                                    Colored::Black(Piece::Bishop) => Some('b'),
+                                    Colored::Black(Piece::Knight) => Some('n'),
+                                    Colored::White(Piece::Queen) => Some('Q'),
+                                    Colored::White(Piece::Rook) => Some('R'),
+                                    Colored::White(Piece::Bishop) => Some('B'),
+                                    Colored::White(Piece::Knight) => Some('N'),
 
-                            _ => None,
+                                    _ => None,
+                                },
+                            )
                         }
-                    } else {
-                        None
+                        simple_ai::Move::Normal(m) => (m, None),
                     };
                     let moves = format!(
                         "bestmove {}{}{}",
