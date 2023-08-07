@@ -4,7 +4,11 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use yea_fen::{chess_engines::minimax, moves::MoveType, Color, Colored, GameState, Piece, Pos};
+use yea_fen::{
+    chess_engines::{minimax, simple_ai::Searcher},
+    moves::MoveType,
+    Color, Colored, GameState, Piece, Pos,
+};
 fn make_info(info: &str) -> String {
     info.lines()
         .map(|s| format!("# info {s}\n"))
@@ -145,6 +149,8 @@ fn main() {
                     minimax::Search::new_time(count.try_into().unwrap(), 0)
                 };
                 if let Some((m, p)) = search.search(&gs) {
+                    let mut s = Searcher::new();
+                    s.search(&mut gs);
                     let p = if let Some(p) = p {
                         println!(
                             "{}",

@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 use wigets::ImageButton;
-use yea_fen::chess_engines::minimax::negamax;
+use yea_fen::chess_engines::minimax::{negamax, negamax_root};
 pub mod wigets;
 use yea_fen::{
     chess_engines::{
@@ -829,7 +829,7 @@ pub fn threads(
                     Computer::RandomMaximizeCapture => random_maximize_capture(&mut gamestate),
                     Computer::Minimax(depth) => {
                         println!("color {color:?} depth {}", depth);
-                        negamax(&mut gamestate, depth)
+                        negamax_root(&mut gamestate, depth)
                     }
                 };
                 println!("doing move");

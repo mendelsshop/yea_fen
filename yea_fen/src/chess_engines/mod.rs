@@ -12,6 +12,7 @@ pub mod minimax;
 pub mod random;
 pub mod random_capture;
 pub mod random_maximize_capture;
+pub mod simple_ai;
 
 fn random() -> Option<usize> {
     let now = SystemTime::now();
