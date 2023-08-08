@@ -211,7 +211,7 @@ fn eval_board(gs: &GameState) -> i32 {
     }
 }
 
-fn generate_all_moves(gs: &mut GameState) -> Vec<Move> {
+pub fn generate_all_moves(gs: &mut GameState) -> Vec<Move> {
     let new_all_valid_moves = gs.new_all_valid_moves(gs.active_color);
     let mut ret = new_all_valid_moves
         .into_iter()
@@ -240,6 +240,14 @@ fn generate_all_moves(gs: &mut GameState) -> Vec<Move> {
             b.cmp(&a)
         });ret
 }
+
+pub fn do_move(gs:&mut GameState, r#move: Move) -> bool {
+    match r#move {
+        Move::Normal(r#move) => gs.do_move(r#move, None),
+        Move::Promotion(r#move, promotion) => gs.do_move(r#move, Some(promotion)),
+    }
+}
+
 fn make_promotion(r#move: MoveType<Pos, Colored<Piece>>) -> Vec<Move> {
     match r#move {
         MoveType::Capture { .. }
@@ -262,6 +270,15 @@ fn make_promotion(r#move: MoveType<Pos, Colored<Piece>>) -> Vec<Move> {
 pub enum Move {
     Normal(MoveType<Pos, Colored<Piece>>),
     Promotion(MoveType<Pos, Colored<Piece>>, Colored<Piece>),
+}
+
+impl std::fmt::Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Normal(arg0) => write!(f, "{arg0}"),
+            Self::Promotion(arg0, arg1) => write!(f, "{arg0} prom {arg1}"),
+        }
+    }
 }
 
 impl Move {

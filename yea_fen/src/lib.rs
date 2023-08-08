@@ -13,6 +13,9 @@
 pub mod chess_engines;
 /// stuff that has to do with making chess moves
 pub mod moves;
+pub mod bit_board_move;
+#[cfg(test)]
+mod perft;
 use std::{error::Error, fmt, str::FromStr};
 
 use moves::{GameResult, Move};
