@@ -45,7 +45,7 @@ impl Searcher {
                 let mut best_move = None;
                 for depth in 1..usize::MAX {
                     if !self.search.more_time() {
-                        println!("out of time searched depth {}", depth-1);
+                        println!("out of time searched depth {}", depth - 1);
                         return best_move;
                     }
                     if let Some(new_best_move) = self.search_root_depth(&mut gs, depth) {
@@ -128,7 +128,7 @@ impl Searcher {
     }
 }
 
-fn quiesce(gs:&mut GameState, mut alpha: i32, beta: i32) -> i32 {
+fn quiesce(gs: &mut GameState, mut alpha: i32, beta: i32) -> i32 {
     let stand_pat = eval_board(&gs);
     if stand_pat >= beta {
         return beta;
@@ -155,9 +155,9 @@ fn quiesce(gs:&mut GameState, mut alpha: i32, beta: i32) -> i32 {
     return alpha;
 }
 
-// 9999 is black losose 
+// 9999 is black losose
 // -9999 if white loses
-// otherwise +score = 
+// otherwise +score =
 fn eval_board(gs: &GameState) -> i32 {
     match gs.get_gameresult() {
         crate::moves::GameResult::CheckMate(c) => {
@@ -216,32 +216,35 @@ pub fn generate_all_moves(gs: &mut GameState) -> Vec<Move> {
     let mut ret = new_all_valid_moves
         .into_iter()
         .map(make_promotion)
-        .flatten().collect::<Vec<Move>>(); ret.sort_by(|m1,m2| {
-            let a = match m1.inner_move() {
-                MoveType::Capture { captured_piece, .. } => {
-                    get_capture_piece_value(Piece::from(captured_piece))
-                }
-                MoveType::CapturePromotion { captured_piece, .. } => {
-                    get_capture_piece_value(Piece::from(captured_piece)) + 5
-                }
-                MoveType::EnPassant { .. } => 1,
-                _ => 0,
-            };
-            let b = match m2.inner_move() {
-                MoveType::Capture { captured_piece, .. } => {
-                    get_capture_piece_value(Piece::from(captured_piece))
-                }
-                MoveType::CapturePromotion { captured_piece, .. } => {
-                    get_capture_piece_value(Piece::from(captured_piece)) + 5
-                }
-                MoveType::EnPassant { .. } => 1,
-                _ => 0,
-            };
-            b.cmp(&a)
-        });ret
+        .flatten()
+        .collect::<Vec<Move>>();
+    ret.sort_by(|m1, m2| {
+        let a = match m1.inner_move() {
+            MoveType::Capture { captured_piece, .. } => {
+                get_capture_piece_value(Piece::from(captured_piece))
+            }
+            MoveType::CapturePromotion { captured_piece, .. } => {
+                get_capture_piece_value(Piece::from(captured_piece)) + 5
+            }
+            MoveType::EnPassant { .. } => 1,
+            _ => 0,
+        };
+        let b = match m2.inner_move() {
+            MoveType::Capture { captured_piece, .. } => {
+                get_capture_piece_value(Piece::from(captured_piece))
+            }
+            MoveType::CapturePromotion { captured_piece, .. } => {
+                get_capture_piece_value(Piece::from(captured_piece)) + 5
+            }
+            MoveType::EnPassant { .. } => 1,
+            _ => 0,
+        };
+        b.cmp(&a)
+    });
+    ret
 }
 
-pub fn do_move(gs:&mut GameState, r#move: Move) -> bool {
+pub fn do_move(gs: &mut GameState, r#move: Move) -> bool {
     match r#move {
         Move::Normal(r#move) => gs.do_move(r#move, None),
         Move::Promotion(r#move, promotion) => gs.do_move(r#move, Some(promotion)),
@@ -310,3 +313,4 @@ impl Default for SearchType {
         Self::Depth(3)
     }
 }
+
