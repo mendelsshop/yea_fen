@@ -152,6 +152,10 @@ pub struct Board {
     black_rooks: BitBoard,
     black_queens: BitBoard,
     black_kings: BitBoard,
+
+    black: BitBoard,
+    white: BitBoard,
+    all: BitBoard,
 }
 
 impl Board {
@@ -170,6 +174,9 @@ impl Board {
             black_rooks: BitBoard::new(129),
             black_queens: BitBoard::new(8),
             black_kings: BitBoard::new(16),
+            black: BitBoard::new(65535),
+            white: BitBoard::new(18446462598732840960),
+            all: BitBoard::new(18446462598732906495),
         }
     }
 }
@@ -272,6 +279,20 @@ impl FromStr for Board {
         if rank < 8 {
             return Err(BoardParseError::TooFewRanks);
         }
+        new_board.white |= new_board.white_bishops
+            | new_board.white_kings
+            | new_board.white_queens
+            | new_board.white_pawns
+            | new_board.white_rooks
+            | new_board.white_knights;
+        new_board.black |= new_board.black_bishops
+            | new_board.black_kings
+            | new_board.black_queens
+            | new_board.black_pawns
+            | new_board.black_rooks
+            | new_board.black_knights;
+        new_board.all |= new_board.black | new_board.white;
+
         Ok(new_board)
     }
 }
@@ -288,6 +309,7 @@ pub enum BoardParseError {
 #[derive(Default, Debug, PartialEq)]
 pub struct GameState {
     board: Board,
+    side_to_move: Color,
 }
 
 impl GameState {
@@ -296,6 +318,7 @@ impl GameState {
     pub fn new_game() -> Self {
         Self {
             board: Board::new_board(),
+            ..Default::default()
         }
     }
 }
@@ -304,15 +327,42 @@ impl GameState {
 pub enum FenParseError {
     BoardParseError(BoardParseError),
     NoSpace,
+    InvalidColorSpecifier,
 }
 
 impl FromStr for GameState {
     type Err = FenParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (board_string, _rest) = s.split_once(' ').ok_or(FenParseError::NoSpace)?;
+        let (board_string, rest) = s.split_once(' ').ok_or(FenParseError::NoSpace)?;
         let board = Board::from_str(board_string).map_err(FenParseError::BoardParseError)?;
-        Ok(GameState { board })
+        let (color_string, _rest) = rest.split_once(' ').ok_or(FenParseError::NoSpace)?;
+        let side_to_move =
+            Color::from_str(color_string).map_err(|_| FenParseError::InvalidColorSpecifier)?;
+        Ok(GameState {
+            board,
+            side_to_move,
+        })
+    }
+}
+
+#[derive(Default, Debug, PartialEq)]
+pub enum Color {
+    #[default]
+    White = 0,
+    Black = 1,
+}
+
+impl FromStr for Color {
+    // TODO: return string of invalid color instead of nothing upon invalid color specification
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "w" => Ok(Self::White),
+            "b" => Ok(Self::Black),
+            _ => Err(()),
+        }
     }
 }
 
@@ -320,7 +370,7 @@ impl FromStr for GameState {
 mod tests {
     use std::str::FromStr;
 
-    use crate::GameState;
+    use crate::{BitBoard, GameState};
     // parse_* tests are for testing the fen parser (from_str)
     #[test]
     fn parse_start() {
@@ -341,9 +391,13 @@ mod tests {
             .unwrap()
         )
     }
-}
 
-pub enum Color {
-    White = 0,
-    Black = 1,
+    #[test]
+    fn main() {
+        let mut bb = BitBoard::default();
+        for i in 48..64 {
+            bb.set_index(i)
+        }
+        println!("{:?}", bb)
+    }
 }

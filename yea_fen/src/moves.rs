@@ -1,6 +1,4 @@
-use crate::{pop_bit, random::generate_magic_number, BitBoard,
-     BISHOP_ATTACKS, ROOK_ATTACKS
-    };
+use crate::{pop_bit, random::generate_magic_number, BitBoard, BISHOP_ATTACKS, ROOK_ATTACKS};
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
 pub const NOT_A_FILE: BitBoard = BitBoard::new(18374403900871474942);
@@ -20,7 +18,6 @@ macro_rules! generate_array {
     }};
 }
 pub const PAWN_ATTACKS: [[BitBoard; 64]; 2] = {
-    
     [
         generate_array!(64, generate_pawn_attack_white, BitBoard::new_empty()),
         generate_array!(64, generate_pawn_attack_black, BitBoard::new_empty()),
@@ -677,12 +674,14 @@ mod tests {
 
     use crate::{
         moves::{
-            get_bishop_attacks, get_rook_attacks, mask_rook_attacks, rook_attacks_on_the_fly, 
+            get_bishop_attacks,
+            get_rook_attacks,
+            mask_rook_attacks,
+            rook_attacks_on_the_fly,
             // BISHOP_ATTACKS,
         },
         BitBoard, Board,
     };
-
 
     use super::{print_magic_numbers, set_occupancy};
 
