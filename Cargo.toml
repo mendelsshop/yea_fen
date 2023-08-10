@@ -1,3 +1,4 @@
 # [PROJECT_DIR]/Cargo.toml
 [workspace]
 members = ["yea_fen_uci", "yea_fen", "yea_fen_gui"]
+resolver = "2"

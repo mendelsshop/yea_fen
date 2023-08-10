@@ -1,38 +1,136 @@
+#![allow(long_running_const_eval)]
+
 use std::{
     fmt::{Debug, Display},
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Shr},
     str::FromStr,
 };
+// mod attack_consts;
+mod moves;
+mod random;
+// include!(concat!(env!("OUT_DIR"), "/hello.rs"));
+pub mod attack_consts;
+pub use attack_consts::*;
+// these impl macros are taken from:
+// https://github.com/analog-hors/magic-bitboards-demo/blob/main/types/src/bitboard.rs
+
+macro_rules! impl_math_ops {
+    ($($trait:ident,$fn:ident;)*) => {$(
+        impl $trait for BitBoard {
+            type Output = Self;
+
+            fn $fn(self, other: Self) -> Self::Output {
+                Self{board: $trait::$fn(self.board, other.board)}
+            }
+        }
+    )*};
+}
+impl_math_ops! {
+    BitAnd, bitand;
+    BitOr, bitor;
+    BitXor, bitxor;
+    Shr, shr;
+}
+
+macro_rules! impl_math_assign_ops {
+    ($($trait:ident,$fn:ident;)*) => {$(
+        impl $trait for BitBoard {
+            fn $fn(&mut self, other: Self) {
+                $trait::$fn(&mut self.board, other.board)
+            }
+        }
+    )*};
+}
+impl_math_assign_ops! {
+    BitAndAssign, bitand_assign;
+    BitOrAssign, bitor_assign;
+    BitXorAssign, bitxor_assign;
+}
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct BitBoard {
     board: u64,
 }
 
+#[macro_export(local_inner_macros)]
+macro_rules! pop_bit {
+    ($bb:expr, $index:expr) => {
+        $bb.board &= !(1 << $index);
+    };
+}
+
 impl BitBoard {
-    pub fn new(board: u64) -> Self {
+    /// Note: this will create a [BitBoard] with the literal value passed in,
+    /// if you want to create a new [BitBoard] with some index initalized
+    /// consider using [BitBoard::new_with_index]
+    pub const fn new(board: u64) -> Self {
         Self { board }
+    }
+
+    /// creates a new [BitBoard] with bit at index on
+    pub const fn new_with_index(index: u64) -> Self {
+        Self { board: 1 << index }
+    }
+
+    // needed as a `Default` implentation for const contexts
+    pub const fn new_empty() -> Self {
+        Self { board: 0 }
+    }
+
+    fn remove_index(&mut self, index: usize) {
+        // set board to and of itself and the opposite of a number with a bit at index
+        // example board = 1001, index = 3
+        // 1 << 3 -> 1000, !1000 -> 0111
+        // 1001 & 0111 -> 0001
+
+        // so because the not inverts the "index" it makes it that when we or the board we only effect the index
+        self.board &= !(1 << index);
     }
 
     fn set_index(&mut self, index: usize) {
         self.board |= 1 << index;
     }
 
+    pub const fn get_index(&self, index: usize) -> u64 {
+        self.board & (1 << index)
+    }
+
     /// returns true if there is a one in the binary repr
     /// at the index given
-    fn exists(&self, index: usize) -> bool {
-        let var_name = self.board & (1 << index);
-        var_name != 0
+    const fn exists(&self, index: usize) -> bool {
+        self.get_index(index) != 0
+    }
+
+    const fn count_bits(&self) -> u32 {
+        self.board.count_ones()
+    }
+
+    // #[const_eval_limit]
+    // TODO: return option/result of u32
+
+    const fn least_significant_first_bit_index(&self) -> i64 {
+        if self.board != 0 {
+            self.board.trailing_zeros() as i64
+        } else {
+            -1
+        }
     }
 }
 
 impl Debug for BitBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bytes = self.board.to_ne_bytes();
+        let mut count = 9;
         write!(
             f,
-            "{}\n{}",
+            "{}\n{}\t +--------\n\t  abcdefgh",
             self.board,
-            bytes.map(|byte| format!("\t{:08b}\n", byte)).join("")
+            bytes
+                .map(|byte| {
+                    count -= 1;
+                    format!("\t{count}|{:08b}\n", byte.reverse_bits())
+                })
+                .join("")
         )
     }
 }
@@ -243,4 +341,9 @@ mod tests {
             .unwrap()
         )
     }
+}
+
+pub enum Color {
+    White = 0,
+    Black = 1,
 }

@@ -1,0 +1,4 @@
+# we need to be on nightly until 1.7.2 comes out which brings in long_running_const_eval attribue instead of erroring out
+
+[toolchain]
+channel = "beta"
