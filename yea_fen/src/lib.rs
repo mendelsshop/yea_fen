@@ -449,6 +449,80 @@ pub enum PositionParseError {
     InvalidRankChar(char),
     InvalidFileChar(char),
 }
+
+macro_rules! c_enum {
+    ($($name:ident = $number:literal),*) => {$(
+        #[allow(non_upper_case_globals)]
+        #[allow(unused)]
+        pub (crate) const $name: i32 = $number;
+    )*};
+    (@nonpublic $init:literal$(+$step:literal)*, $first:ident) => {
+        #[allow(non_upper_case_globals)]
+        #[allow(unused)]
+        pub (crate) const $first: i32 = $init$(+$step)*+1;
+    };
+    (@nonpublic $init:literal$(+$step:literal)*, $first:ident, $($name:ident),*) => {
+        #[allow(non_upper_case_globals)]
+        #[allow(unused)]
+        pub (crate) const $first: i32 = $init$(+$step)*;
+        c_enum!{@nonpublic $init$(+$step)*+1, $($name),*}
+    };
+    ($($name:ident),*) => {
+        c_enum!{@nonpublic 0, $($name),*}
+    };
+    (@struct $structname:ident $($name:ident = $number:literal),*) => {
+    struct $structname { $(
+        $name: i32
+    )*}
+    const $structname: $structname =  $structname {
+        $($name: $number,)*
+    };
+    };
+
+    (@enum $enumname:ident $($name:ident = $number:literal),*) => {enum $enumname { $(
+        $name = $number,
+    )*}};
+}
+
+c_enum!(P, N, B, R, Q, K, p, n, b, r, q, k);
+c_enum!(
+    a8, b8, c8, d8, e8, f8, g8, h8, a7, b7, c7, d7, e7, f7, g7, h7, a6, b6, c6, d6, e6, f6, g6, h6,
+    a5, b5, c5, d5, e5, f5, g5, h5, a4, b4, c4, d4, e4, f4, g4, h4, a3, b3, c3, d3, e3, f3, g3, h3,
+    a2, b2, c2, d2, e2, f2, g2, h2, a1, b1, c1, d1, e1, f1, g1, h1, no_sq
+);
+c_enum!(white, black, both);
+c_enum! { wk = 1, wq = 2, bk = 4, bq = 8 }
+c_enum! { rook, bishop }
+pub const SQUARE_COORDINATES: [&'static str; 64] = [
+    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6", "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+    "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4", "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2", "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+];
+
+// ASCII pieces
+const ASCII_PIECES: [char; 12] = ['P','N','B','R','Q','K','p','n','b','r','q','k'];
+
+// unicode pieces
+const UNICODE_PIECES: [char; 12]  = ['♙', '♘', '♗', '♖', '♕', '♔', '\u{265f}', '♞', '♝', '♜', '♛', '♚'];
+
+// convert ASCII character pieces to encoded constants
+// int char_pieces[] = {
+//     ['P'] = P,
+//     ['N'] = N,
+//     ['B'] = B,
+//     ['R'] = R,
+//     ['Q'] = Q,
+//     ['K'] = K,
+//     ['p'] = p,
+//     ['n'] = n,
+//     ['b'] = b,
+//     ['r'] = r,
+//     ['q'] = q,
+//     ['k'] = k
+// };
+
+
 pub const fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
     if !(pos_str.len() == 2) {
         return Err(PositionParseError::PositionStringToLong);
@@ -492,7 +566,7 @@ impl FromStr for Color {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{BitBoard, GameState};
+    use crate::{BitBoard, GameState, B};
     // parse_* tests are for testing the fen parser (from_str)
     #[test]
     fn parse_start() {
