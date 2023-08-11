@@ -310,6 +310,8 @@ pub enum BoardParseError {
 pub struct GameState {
     board: Board,
     side_to_move: Color,
+    en_pessant: Option<usize>,
+    castling_rights: CastlingRights,
 }
 
 impl GameState {
@@ -318,14 +320,93 @@ impl GameState {
     pub fn new_game() -> Self {
         Self {
             board: Board::new_board(),
+            castling_rights: CastlingRights::build_all(),
             ..Default::default()
         }
+    }
+}
+
+#[derive(Default, Debug, PartialEq, Clone, Copy)]
+pub struct CastlingRights {
+    inner: u8,
+}
+
+impl CastlingRights {
+    pub fn build_king_side_black(mut self) -> Self {
+        self.inner |= 4;
+        self
+    }
+    pub fn build_queen_side_black(mut self) -> Self {
+        self.inner |= 8;
+        self
+    }
+    pub fn build_king_side_white(mut self) -> Self {
+        self.inner |= 1;
+        self
+    }
+    pub fn build_queen_side_white(mut self) -> Self {
+        self.inner |= 2;
+        self
+    }
+
+    pub fn build_all() -> Self {
+        Self::default()
+            .build_king_side_black()
+            .build_king_side_white()
+            .build_queen_side_black()
+            .build_queen_side_white()
+    }
+
+    pub fn king_side_black(&mut self) {
+        *self = self.build_king_side_black();
+    }
+    pub fn queen_side_black(&mut self) {
+        *self = self.build_queen_side_black()
+    }
+    pub fn king_side_white(&mut self) {
+        *self = self.build_king_side_white()
+    }
+    pub fn queen_side_white(&mut self) {
+        *self = self.build_queen_side_white()
+    }
+}
+
+#[derive(Debug)]
+pub enum CastlingParseError {
+    NonASCCIStr,
+    InvalidCharacter(char),
+    CastlingRightStringToLong,
+}
+
+impl FromStr for CastlingRights {
+    type Err = CastlingParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.is_ascii() {
+            return Err(CastlingParseError::NonASCCIStr);
+        }
+        if s.len() > 4 {
+            return Err(CastlingParseError::CastlingRightStringToLong);
+        }
+        let mut ret = CastlingRights::default();
+        for c in s.chars() {
+            match c {
+                'q' => ret.queen_side_black(),
+                'k' => ret.king_side_black(),
+                'Q' => ret.queen_side_white(),
+                'K' => ret.king_side_white(),
+                invalid => return Err(CastlingParseError::InvalidCharacter(invalid)),
+            }
+        }
+        return Ok(ret);
     }
 }
 
 #[derive(Debug)]
 pub enum FenParseError {
     BoardParseError(BoardParseError),
+    CastlingParseError(CastlingParseError),
+    EnPessantParseError(PositionParseError),
     NoSpace,
     InvalidColorSpecifier,
 }
@@ -334,16 +415,57 @@ impl FromStr for GameState {
     type Err = FenParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // fen structure board color castling-rights en-pessant
         let (board_string, rest) = s.split_once(' ').ok_or(FenParseError::NoSpace)?;
         let board = Board::from_str(board_string).map_err(FenParseError::BoardParseError)?;
-        let (color_string, _rest) = rest.split_once(' ').ok_or(FenParseError::NoSpace)?;
+        let (color_string, rest) = rest.split_once(' ').ok_or(FenParseError::NoSpace)?;
         let side_to_move =
             Color::from_str(color_string).map_err(|_| FenParseError::InvalidColorSpecifier)?;
+        let (castling_rights_string, rest) = rest.split_once(' ').ok_or(FenParseError::NoSpace)?;
+        let castling_rights = if castling_rights_string == "-" {
+            CastlingRights::default()
+        } else {
+            CastlingRights::from_str(castling_rights_string)
+                .map_err(FenParseError::CastlingParseError)?
+        };
+        let (en_pessant_string, rest) = rest.split_once(' ').ok_or(FenParseError::NoSpace)?;
+        let en_pessant = if en_pessant_string == "-" {
+            None
+        } else {
+            Some(pos_to_index(en_pessant_string).map_err(FenParseError::EnPessantParseError)?)
+        };
         Ok(GameState {
             board,
             side_to_move,
+            en_pessant,
+            castling_rights,
         })
     }
+}
+
+#[derive(Debug)]
+pub enum PositionParseError {
+    PositionStringToLong,
+    InvalidRankChar(char),
+    InvalidFileChar(char),
+}
+pub const fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
+    if !(pos_str.len() == 2) {
+        return Err(PositionParseError::PositionStringToLong);
+    }
+    let individual_parts = pos_str.as_bytes();
+
+    let rank = match individual_parts[0] as char {
+        'a'..='h' => individual_parts[0] as usize - 97,
+        'A'..='H' => individual_parts[0] as usize - 65,
+        invalid_rank => return Err(PositionParseError::InvalidRankChar(invalid_rank)),
+    };
+    let file = match individual_parts[1] as char {
+        // TODO: it might be 8 - ...
+        '1'..='8' => individual_parts[1] as usize - 31,
+        invalid_file => return Err(PositionParseError::InvalidFileChar(invalid_file)),
+    };
+    return Ok(rank * 8 + file);
 }
 
 #[derive(Default, Debug, PartialEq)]
