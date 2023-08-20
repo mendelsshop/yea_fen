@@ -506,21 +506,34 @@ const ASCII_PIECES: [char; 12] = ['P','N','B','R','Q','K','p','n','b','r','q','k
 // unicode pieces
 const UNICODE_PIECES: [char; 12]  = ['♙', '♘', '♗', '♖', '♕', '♔', '\u{265f}', '♞', '♝', '♜', '♛', '♚'];
 
-// convert ASCII character pieces to encoded constants
-// int char_pieces[] = {
-//     ['P'] = P,
-//     ['N'] = N,
-//     ['B'] = B,
-//     ['R'] = R,
-//     ['Q'] = Q,
-//     ['K'] = K,
-//     ['p'] = p,
-//     ['n'] = n,
-//     ['b'] = b,
-//     ['r'] = r,
-//     ['q'] = q,
-//     ['k'] = k
-// };
+macro_rules! c_init_array {
+    ($arr:expr; $([$index:expr] = $value:expr),*) => {
+        {
+            $($arr[$index as usize] = $value;)*
+            $arr
+        }
+    }
+}
+
+const nnn: [i32;115]= c_init_array!([-1;115]; ['a']= 6);
+
+
+const CHAR_PIECES:[i32;115] = {
+    let mut out= [-1;115];
+    out['P' as usize] = P;
+out['N' as usize] = N;
+out['B' as usize] = B;
+out['R' as usize] = R;
+out['Q' as usize] = Q;
+out['K' as usize] = K;
+out['p' as usize] = p;
+out['n' as usize] = n;
+out['b' as usize] = b;
+out['r' as usize] = r;
+out['q' as usize] = q;
+    out['k' as usize] = k;
+    out
+};
 
 
 pub const fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
