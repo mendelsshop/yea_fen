@@ -667,6 +667,10 @@ pub fn get_rook_attacks(square: usize, mut occupancy: BitBoard) -> BitBoard {
     ROOK_ATTACKS[square][occupancy.board as usize]
 }
 
+pub fn get_queen_attacks(square: usize, occupancy: BitBoard) -> BitBoard {
+    get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(unused_imports)]
@@ -675,10 +679,11 @@ mod tests {
     use crate::{
         moves::{
             get_bishop_attacks,
+            get_queen_attacks,
+            // BISHOP_ATTACKS,
             get_rook_attacks,
             mask_rook_attacks,
             rook_attacks_on_the_fly,
-            // BISHOP_ATTACKS,
         },
         BitBoard, Board,
     };
@@ -738,6 +743,24 @@ mod tests {
         println!("{bb:?}");
 
         let attacks = get_rook_attacks(28, bb);
+
+        println!("{:?}", attacks);
+    }
+
+    #[test]
+    fn queen_with_blocker() {
+        let mut bb = BitBoard::default();
+        bb.set_index(26);
+        bb.set_index(53);
+        bb.set_index(14);
+        bb.set_index(53);
+        bb.set_index(49);
+        bb.set_index(30);
+        bb.set_index(52);
+        bb.set_index(12);
+        println!("{bb:?}");
+
+        let attacks = get_queen_attacks(28, bb);
 
         println!("{:?}", attacks);
     }

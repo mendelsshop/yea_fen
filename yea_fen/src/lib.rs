@@ -501,10 +501,12 @@ pub const SQUARE_COORDINATES: [&'static str; 64] = [
 ];
 
 // ASCII pieces
-const ASCII_PIECES: [char; 12] = ['P','N','B','R','Q','K','p','n','b','r','q','k'];
+const ASCII_PIECES: [char; 12] = ['P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'];
 
 // unicode pieces
-const UNICODE_PIECES: [char; 12]  = ['♙', '♘', '♗', '♖', '♕', '♔', '\u{265f}', '♞', '♝', '♜', '♛', '♚'];
+const UNICODE_PIECES: [char; 12] = [
+    '♙', '♘', '♗', '♖', '♕', '♔', '\u{265f}', '♞', '♝', '♜', '♛', '♚',
+];
 
 // convert ASCII character pieces to encoded constants
 // int char_pieces[] = {
@@ -521,7 +523,6 @@ const UNICODE_PIECES: [char; 12]  = ['♙', '♘', '♗', '♖', '♕', '♔', '
 //     ['q'] = q,
 //     ['k'] = k
 // };
-
 
 pub const fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
     if !(pos_str.len() == 2) {
