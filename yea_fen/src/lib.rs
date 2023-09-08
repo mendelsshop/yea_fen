@@ -152,7 +152,6 @@ pub struct Board {
     black_rooks: BitBoard,
     black_queens: BitBoard,
     black_kings: BitBoard,
-
     black: BitBoard,
     white: BitBoard,
     all: BitBoard,
@@ -306,12 +305,24 @@ pub enum BoardParseError {
     TooFewFiles,
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct GameState {
     board: Board,
     side_to_move: Color,
     en_pessant: Option<usize>,
     castling_rights: CastlingRights,
+}
+fn index_to_position(index: usize) -> &'static str {
+    SQUARE_COORDINATES[index]
+ }
+impl Debug for GameState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}\ncolor: {:?}\nen pessent: {}\ncastling rights: {}",
+            self.board, self.side_to_move, self.en_pessant.map(index_to_position).unwrap_or("-"), self.castling_rights
+        )
+    }
 }
 
 impl GameState {
@@ -329,6 +340,13 @@ impl GameState {
 #[derive(Default, Debug, PartialEq, Clone, Copy)]
 pub struct CastlingRights {
     inner: u8,
+}
+
+impl Display for CastlingRights {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let get_right = |index, string| if self.inner as i32 & index != 0{ string } else { "-" }; 
+        write!(f, "{}{}{}{}", get_right(wk, "K" ), get_right(wq, "Q" ), get_right(bk, "k"), get_right(bq, "q"))
+    }
 }
 
 impl CastlingRights {
@@ -432,6 +450,7 @@ impl FromStr for GameState {
         let en_pessant = if en_pessant_string == "-" {
             None
         } else {
+            // parsing en pessant string seems to be broken
             Some(pos_to_index(en_pessant_string).map_err(FenParseError::EnPessantParseError)?)
         };
         Ok(GameState {
@@ -493,7 +512,7 @@ c_enum!(
 c_enum!(white, black, both);
 c_enum! { wk = 1, wq = 2, bk = 4, bq = 8 }
 c_enum! { rook, bishop }
-pub const SQUARE_COORDINATES: [&'static str; 64] = [
+pub const SQUARE_COORDINATES: [&str; 64] = [
     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
     "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6", "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
     "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4", "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
@@ -517,22 +536,19 @@ macro_rules! c_init_array {
     }
 }
 
-const nnn: [i32;115]= c_init_array!([-1;115]; ['a']= 6);
-
-
-const CHAR_PIECES:[i32;115] = {
-    let mut out= [-1;115];
+const CHAR_PIECES: [i32; 115] = {
+    let mut out = [-1; 115];
     out['P' as usize] = P;
-out['N' as usize] = N;
-out['B' as usize] = B;
-out['R' as usize] = R;
-out['Q' as usize] = Q;
-out['K' as usize] = K;
-out['p' as usize] = p;
-out['n' as usize] = n;
-out['b' as usize] = b;
-out['r' as usize] = r;
-out['q' as usize] = q;
+    out['N' as usize] = N;
+    out['B' as usize] = B;
+    out['R' as usize] = R;
+    out['Q' as usize] = Q;
+    out['K' as usize] = K;
+    out['p' as usize] = p;
+    out['n' as usize] = n;
+    out['b' as usize] = b;
+    out['r' as usize] = r;
+    out['q' as usize] = q;
     out['k' as usize] = k;
     out
 };
@@ -594,7 +610,7 @@ mod tests {
     #[test]
     fn parse_copmplex() {
         println!(
-            "{}",
+            "{:?}",
             GameState::from_str(
                 "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
             )
