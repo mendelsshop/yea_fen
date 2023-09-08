@@ -314,13 +314,16 @@ pub struct GameState {
 }
 fn index_to_position(index: usize) -> &'static str {
     SQUARE_COORDINATES[index]
- }
+}
 impl Debug for GameState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}\ncolor: {:?}\nen pessent: {}\ncastling rights: {}",
-            self.board, self.side_to_move, self.en_pessant.map(index_to_position).unwrap_or("-"), self.castling_rights
+            self.board,
+            self.side_to_move,
+            self.en_pessant.map(index_to_position).unwrap_or("-"),
+            self.castling_rights
         )
     }
 }
@@ -344,8 +347,21 @@ pub struct CastlingRights {
 
 impl Display for CastlingRights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let get_right = |index, string| if self.inner as i32 & index != 0{ string } else { "-" }; 
-        write!(f, "{}{}{}{}", get_right(wk, "K" ), get_right(wq, "Q" ), get_right(bk, "k"), get_right(bq, "q"))
+        let get_right = |index, string| {
+            if self.inner as i32 & index != 0 {
+                string
+            } else {
+                "-"
+            }
+        };
+        write!(
+            f,
+            "{}{}{}{}",
+            get_right(wk, "K"),
+            get_right(wq, "Q"),
+            get_right(bk, "k"),
+            get_right(bq, "q")
+        )
     }
 }
 
@@ -450,7 +466,6 @@ impl FromStr for GameState {
         let en_pessant = if en_pessant_string == "-" {
             None
         } else {
-            // parsing en pessant string seems to be broken
             Some(pos_to_index(en_pessant_string).map_err(FenParseError::EnPessantParseError)?)
         };
         Ok(GameState {
@@ -553,20 +568,20 @@ const CHAR_PIECES: [i32; 115] = {
     out
 };
 
-pub const fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
+pub fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
     if !(pos_str.len() == 2) {
         return Err(PositionParseError::PositionStringToLong);
     }
     let individual_parts = pos_str.as_bytes();
 
     let rank = match individual_parts[0] as char {
-        'a'..='h' => individual_parts[0] as usize - 97,
-        'A'..='H' => individual_parts[0] as usize - 65,
+        'a'..='h' => 7 - (individual_parts[0] as usize - 97),
+        'A'..='H' => 7 - (individual_parts[0] as usize - 65),
         invalid_rank => return Err(PositionParseError::InvalidRankChar(invalid_rank)),
     };
     let file = match individual_parts[1] as char {
         // TODO: it might be 8 - ...
-        '1'..='8' => individual_parts[1] as usize - 31,
+        '1'..='8' => individual_parts[1] as usize - 49,
         invalid_file => return Err(PositionParseError::InvalidFileChar(invalid_file)),
     };
     return Ok(rank * 8 + file);
@@ -612,7 +627,7 @@ mod tests {
         println!(
             "{:?}",
             GameState::from_str(
-                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq a1 0 1"
             )
             .unwrap()
         )
