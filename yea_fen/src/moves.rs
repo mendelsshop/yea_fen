@@ -1,4 +1,7 @@
-use crate::{pop_bit, random::generate_magic_number, BitBoard, BISHOP_ATTACKS, ROOK_ATTACKS};
+use crate::{
+    black, pop_bit, random::generate_magic_number, white, BitBoard, Board, Color, BISHOP_ATTACKS,
+    P, ROOK_ATTACKS,
+};
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
 pub const NOT_A_FILE: BitBoard = BitBoard::new(18374403900871474942);
@@ -671,12 +674,109 @@ pub fn get_queen_attacks(square: usize, occupancy: BitBoard) -> BitBoard {
     get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy)
 }
 
+impl Board {
+    // is the given square attacked with the given color attacked by the other side
+    fn is_square_attacked(&self, square: usize, color: Color) -> bool {
+        if color == Color::White
+            && (PAWN_ATTACKS[black as usize][square] & self.white_pawns).board != 0
+        {
+            return true;
+        }
+        if color == Color::Black
+            && (PAWN_ATTACKS[white as usize][square] & self.black_pawns).board != 0
+        {
+            return true;
+        }
+        if (KNIGHT_ATTACKS[square].board
+            & if color == Color::White {
+                self.white_knights
+            } else {
+                self.black_knights
+            }
+            .board)
+            != 0
+        {
+            return true;
+        }
+
+        if (KING_ATTACKS[square].board
+            & if color == Color::White {
+                self.white_kings
+            } else {
+                self.black_kings
+            }
+            .board)
+            != 0
+        {
+            return true;
+        }
+
+        if (get_bishop_attacks(square, self.all)
+            & if color == Color::White {
+                self.white_bishops
+            } else {
+                self.black_bishops
+            })
+        .board
+            != 0
+        {
+            return true;
+        }
+        if (get_rook_attacks(square, self.all)
+            & if color == Color::White {
+                self.white_rooks
+            } else {
+                self.black_rooks
+            })
+        .board
+            != 0
+        {
+            return true;
+        }
+        if (get_queen_attacks(square, self.all)
+            & if color == Color::White {
+                self.white_queens
+            } else {
+                self.black_queens
+            })
+        .board
+            != 0
+        {
+            return true;
+        }
+        return false;
+    }
+
+    fn print_attacked_square(&self, color: Color) {
+        print!("-+---+---+---+---+---+---+---+---+");
+        for rank in 0..8 {
+            for file in 0..8 {
+                let square: usize = rank * 8 + file;
+                if file == 0 {
+                    print!("\n{}|", 8 - rank);
+                }
+                print!(
+                    "{}|",
+                    if self.is_square_attacked(square, color) {
+                        " * "
+                    } else {
+                        "   "
+                    }
+                );
+            }
+            print!("\n-+---+---+---+---+---+---+---+---+")
+        }
+        println!("\n | a | b | c | d | e | f | g | h |")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(unused_imports)]
     use std::str::FromStr;
 
     use crate::{
+        a3, a4, b7, e2, g3, h3, h6,
         moves::{
             get_bishop_attacks,
             get_queen_attacks,
@@ -685,10 +785,10 @@ mod tests {
             mask_rook_attacks,
             rook_attacks_on_the_fly,
         },
-        BitBoard, Board,
+        BitBoard, Board, GameState,
     };
 
-    use super::{print_magic_numbers, set_occupancy};
+    use super::{print_magic_numbers, set_occupancy, PAWN_ATTACKS};
 
     #[test]
     fn print_rook_with_blocker() {
@@ -763,5 +863,23 @@ mod tests {
         let attacks = get_queen_attacks(28, bb);
 
         println!("{:?}", attacks);
+    }
+
+    #[test]
+    fn print_pawn_attacks() {
+        let mut game = 
+            GameState::from_str(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq a1 0 1"
+            )
+            .unwrap()
+;
+        println!("{:?}", game.board.all);
+        println!("{:?}", game);
+        // println!(
+        //     "{:?}",
+        //     game.board
+        //         .is_square_attacked(h3 as usize, crate::Color::White)
+        // );
+        game.board.print_attacked_square(crate::Color::White);
     }
 }

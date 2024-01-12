@@ -587,7 +587,7 @@ pub fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
     return Ok(rank * 8 + file);
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default,Clone, Copy, Debug, PartialEq)]
 pub enum Color {
     #[default]
     White = 0,
