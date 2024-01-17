@@ -1,6 +1,8 @@
+use std::usize;
+
 use crate::{
-    black, pop_bit, random::generate_magic_number, white, BitBoard, Board, Color, BISHOP_ATTACKS,
-    P, ROOK_ATTACKS,
+    black, pop_bit, random::generate_magic_number, white, BitBoard, Board, Color, GameState, Piece,
+    BISHOP_ATTACKS, ROOK_ATTACKS,
 };
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
@@ -673,6 +675,26 @@ pub fn get_rook_attacks(square: usize, mut occupancy: BitBoard) -> BitBoard {
 pub fn get_queen_attacks(square: usize, occupancy: BitBoard) -> BitBoard {
     get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy)
 }
+#[derive(Debug)]
+pub enum MoveType {
+    Capture,
+    Normal,
+    EnPassant,
+}
+pub struct Move(usize, usize, MoveType, Option<Piece>);
+
+impl std::fmt::Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}:{}{}{}",
+            self.2,
+            crate::index_to_position(self.0),
+            crate::index_to_position(self.1),
+            self.3.map_or_else(String::new, |p| p.to_string())
+        )
+    }
+}
 
 impl Board {
     // is the given square attacked with the given color attacked by the other side
@@ -769,7 +791,142 @@ impl Board {
         println!("\n | a | b | c | d | e | f | g | h |")
     }
 }
+impl GameState {
+    fn generate_pawn_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let mut bitboard = self.board[(color, Piece::Pawn)];
+        let (next_rank, promotion_range, two_move_range, in_board, occupancy): (
+            fn(usize, usize) -> usize,
+            _,
+            _,
+            fn(usize) -> bool,
+            _,
+        ) = match color {
+            Color::White => (
+                std::ops::Sub::sub,
+                (crate::a7..=crate::h7),
+                (crate::a2..=crate::h2),
+                |i| !(i < crate::a8 as usize),
+                self.board.black,
+            ),
+            Color::Black => (
+                std::ops::Add::add,
+                (crate::a2..=crate::h2),
+                (crate::a7..=crate::h7),
+                |i| !(i > crate::h1 as usize),
+                self.board.white,
+            ),
+        };
+        while bitboard.board != 0 {
+            let source_square = bitboard.least_significant_first_bit_index() as usize;
+            let target_square = next_rank(source_square, 8) as usize;
+            if in_board(target_square) && !self.board.all.exists(target_square as usize) {
+                // pawn promotion
+                if promotion_range.contains(&(source_square as i32)) {
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Normal,
+                        Some(Piece::Rook),
+                    ));
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Normal,
+                        Some(Piece::Knight),
+                    ));
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Normal,
+                        Some(Piece::Bishop),
+                    ));
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Normal,
+                        Some(Piece::Queen),
+                    ));
+                }
+                // double pawn move
+                else {
+                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    if two_move_range.contains(&(source_square as i32))
+                        && !self.board.all.exists(next_rank(target_square, 8))
+                    {
+                        moves.push(Move(
+                            source_square,
+                            next_rank(target_square, 8),
+                            MoveType::Normal,
+                            None,
+                        ));
+                    }
+                }
+            }
+            let mut attacks = PAWN_ATTACKS[color as usize][source_square] & occupancy;
+            while attacks.board != 0 {
+                let target_square = attacks.least_significant_first_bit_index() as usize;
+                if promotion_range.contains(&(source_square as i32)) {
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Capture,
+                        Some(Piece::Rook),
+                    ));
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Capture,
+                        Some(Piece::Knight),
+                    ));
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Capture,
+                        Some(Piece::Bishop),
+                    ));
+                    moves.push(Move(
+                        source_square,
+                        target_square,
+                        MoveType::Capture,
+                        Some(Piece::Queen),
+                    ));
+                } else {
+                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                }
 
+                attacks.remove_index(target_square as usize)
+            }
+            if let Some(en_pessant) = self.en_pessant {
+                let en_pessant_attacks =
+                    PAWN_ATTACKS[color as usize][source_square] & BitBoard::new(1 << en_pessant);
+                if en_pessant_attacks.board != 0 {
+                    let target_en_pessant =
+                        en_pessant_attacks.least_significant_first_bit_index() as usize;
+
+                    moves.push(Move(
+                        source_square,
+                        target_en_pessant,
+                        MoveType::Capture,
+                        None,
+                    ));
+                }
+            }
+            bitboard.remove_index(source_square as usize)
+        }
+    }
+    fn generate_castle_moves(&self) {}
+    fn generate_bishop_moves(&self) {}
+    fn generate_knights_moves(&self, color: Color) {}
+    fn generate_rook_moves(&self, color: Color) {}
+    fn generate_queen_moves(&self, color: Color) {}
+    fn generate_king_moves(&self, color: Color) {}
+    fn generate_moves(&self) -> Vec<Move> {
+        let mut moves = vec![];
+        self.generate_pawn_moves(Color::White, &mut moves);
+        moves
+    }
+    // add code here
+}
 #[cfg(test)]
 mod tests {
     #![allow(unused_imports)]
@@ -867,12 +1024,10 @@ mod tests {
 
     #[test]
     fn print_pawn_attacks() {
-        let mut game = 
-            GameState::from_str(
-                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq a1 0 1"
-            )
-            .unwrap()
-;
+        let game = GameState::from_str(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq a1 0 1",
+        )
+        .unwrap();
         println!("{:?}", game.board.all);
         println!("{:?}", game);
         // println!(
@@ -881,5 +1036,29 @@ mod tests {
         //         .is_square_attacked(h3 as usize, crate::Color::White)
         // );
         game.board.print_attacked_square(crate::Color::White);
+    }
+
+    #[test]
+    fn print_starting_white_pawn_attacks() {
+        let board = GameState::new_game();
+        println!("{board}");
+        let mut moves = vec![];
+        board.generate_pawn_moves(crate::Color::White, &mut moves);
+        for m in moves {
+            println!("{m}");
+        }
+    }
+    #[test]
+    fn print_middle_white_pawn_attacks() {
+        let board = GameState::from_str(
+            "r2k3r/pPppqpb1/nP2pnp1/3PN3/1p2P3/2N2Q1P/PPPBBPPP/R3K2R w KQkq a1 0 1",
+        )
+        .unwrap();
+        println!("{board}");
+        let mut moves = vec![];
+        board.generate_pawn_moves(crate::Color::White, &mut moves);
+        for m in moves {
+            println!("{m}");
+        }
     }
 }

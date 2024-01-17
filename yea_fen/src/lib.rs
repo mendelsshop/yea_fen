@@ -180,6 +180,26 @@ impl Board {
     }
 }
 
+impl std::ops::Index<(Color, Piece)> for Board {
+    type Output = BitBoard;
+    fn index(&self, index: (Color, Piece)) -> &Self::Output {
+        match index {
+            (Color::White, Piece::Pawn) => &self.white_pawns,
+            (Color::White, Piece::Knight) => &self.white_knights,
+            (Color::White, Piece::Bishop) => &self.white_bishops,
+            (Color::White, Piece::Rook) => &self.white_rooks,
+            (Color::White, Piece::Queen) => &self.white_queens,
+            (Color::White, Piece::King) => &self.white_kings,
+            (Color::Black, Piece::Pawn) => &self.black_pawns,
+            (Color::Black, Piece::Knight) => &self.black_knights,
+            (Color::Black, Piece::Bishop) => &self.black_bishops,
+            (Color::Black, Piece::Rook) => &self.black_rooks,
+            (Color::Black, Piece::Queen) => &self.black_queens,
+            (Color::Black, Piece::King) => &self.black_kings,
+        }
+    }
+}
+
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank_index in 0..8 {
@@ -533,7 +553,21 @@ pub const SQUARE_COORDINATES: [&str; 64] = [
     "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4", "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2", "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 ];
+#[derive(Clone, Copy)]
+pub enum Piece {
+    Pawn = 0,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+}
 
+impl Display for Piece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", ASCII_PIECES[*self as usize + 6])
+    }
+}
 // ASCII pieces
 const ASCII_PIECES: [char; 12] = ['P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'];
 
@@ -587,7 +621,7 @@ pub fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
     return Ok(rank * 8 + file);
 }
 
-#[derive(Default,Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum Color {
     #[default]
     White = 0,
@@ -611,7 +645,7 @@ impl FromStr for Color {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{BitBoard, GameState, B};
+    use crate::{BitBoard, GameState};
     // parse_* tests are for testing the fen parser (from_str)
     #[test]
     fn parse_start() {
