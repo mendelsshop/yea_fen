@@ -1,8 +1,8 @@
 use std::usize;
 
 use crate::{
-    black, pop_bit, random::generate_magic_number, white, BitBoard, Board, Color, GameState, Piece,
-    BISHOP_ATTACKS, ROOK_ATTACKS,
+    black, pop_bit, random::generate_magic_number, white, BitBoard, Board,
+    Color, GameState, Piece, BISHOP_ATTACKS, ROOK_ATTACKS,
 };
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
@@ -766,7 +766,7 @@ impl Board {
         {
             return true;
         }
-        return false;
+        false
     }
 
     fn print_attacked_square(&self, color: Color) {
@@ -805,21 +805,21 @@ impl GameState {
                 std::ops::Sub::sub,
                 (crate::a7..=crate::h7),
                 (crate::a2..=crate::h2),
-                |i| !(i < crate::a8 as usize),
+                |i| (i >= crate::a8 as usize),
                 self.board.black,
             ),
             Color::Black => (
                 std::ops::Add::add,
                 (crate::a2..=crate::h2),
                 (crate::a7..=crate::h7),
-                |i| !(i > crate::h1 as usize),
+                |i| (i <= crate::h1 as usize),
                 self.board.white,
             ),
         };
         while bitboard.board != 0 {
             let source_square = bitboard.least_significant_first_bit_index() as usize;
-            let target_square = next_rank(source_square, 8) as usize;
-            if in_board(target_square) && !self.board.all.exists(target_square as usize) {
+            let target_square = next_rank(source_square, 8);
+            if in_board(target_square) && !self.board.all.exists(target_square) {
                 // pawn promotion
                 if promotion_range.contains(&(source_square as i32)) {
                     moves.push(Move(
@@ -894,7 +894,7 @@ impl GameState {
                     moves.push(Move(source_square, target_square, MoveType::Capture, None));
                 }
 
-                attacks.remove_index(target_square as usize)
+                attacks.remove_index(target_square)
             }
             if let Some(en_pessant) = self.en_pessant {
                 let en_pessant_attacks =
@@ -911,18 +911,54 @@ impl GameState {
                     ));
                 }
             }
-            bitboard.remove_index(source_square as usize)
+            bitboard.remove_index(source_square)
         }
     }
     fn generate_castle_moves(&self) {}
     fn generate_bishop_moves(&self) {}
-    fn generate_knights_moves(&self, color: Color) {}
+    fn generate_knights_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let mut bitboard = self.board[(color, Piece::Knight)];
+        // go through all color knights
+        while bitboard.board != 0 {
+            let source_square = bitboard.least_significant_first_bit_index() as usize;
+            // find all possilbe attack squares for the knight at that possiton
+            let attacks = KNIGHT_ATTACKS[source_square];
+            // filter out moves that would be illegal because a piece of our own is on that square
+            // we do this by anding the possible attacks with whatever pieces are not occupied by us
+            let mut attacks = attacks
+                & !if color == Color::Black {
+                    self.board.black
+                } else {
+                    self.board.white
+                };
+
+            while attacks.board != 0 {
+                let target_square = attacks.least_significant_first_bit_index() as usize;
+
+                if if color == Color::Black {
+                    self.board.white
+                } else {
+                    self.board.black
+                }
+                .get_index(target_square)
+                    == 0
+                {
+                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                } else {
+                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                }
+                attacks.remove_index(target_square)
+            }
+            bitboard.remove_index(source_square)
+        }
+    }
     fn generate_rook_moves(&self, color: Color) {}
     fn generate_queen_moves(&self, color: Color) {}
     fn generate_king_moves(&self, color: Color) {}
-    fn generate_moves(&self) -> Vec<Move> {
+    fn generate_moves(&self, color: Color) -> Vec<Move> {
         let mut moves = vec![];
-        self.generate_pawn_moves(Color::White, &mut moves);
+        self.generate_pawn_moves(color, &mut moves);
+        self.generate_knights_moves(color, &mut moves);
         moves
     }
     // add code here
@@ -1055,8 +1091,7 @@ mod tests {
         )
         .unwrap();
         println!("{board}");
-        let mut moves = vec![];
-        board.generate_pawn_moves(crate::Color::White, &mut moves);
+        let moves = board.generate_moves(crate::Color::White);
         for m in moves {
             println!("{m}");
         }

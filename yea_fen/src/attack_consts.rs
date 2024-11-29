@@ -1,6 +1,6 @@
 use crate::BitBoard;
 
-pub const BISHOP_ATTACKS: [[BitBoard; 512]; 64] = [
+pub static BISHOP_ATTACKS: [[BitBoard; 512]; 64] = [
     [
         BitBoard {
             board: 9241421688590303744,

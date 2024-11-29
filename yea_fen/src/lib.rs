@@ -2,7 +2,7 @@
 
 use std::{
     fmt::{Debug, Display},
-    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Shr},
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shr},
     str::FromStr,
 };
 // mod attack_consts;
@@ -59,6 +59,15 @@ macro_rules! pop_bit {
     };
 }
 
+impl Not for BitBoard {
+    fn not(self) -> Self::Output {
+        BitBoard {
+            board: Not::not(self.board),
+        }
+    }
+
+    type Output = Self;
+}
 impl BitBoard {
     /// Note: this will create a [BitBoard] with the literal value passed in,
     /// if you want to create a new [BitBoard] with some index initalized
@@ -278,7 +287,7 @@ impl FromStr for Board {
                     'k' => new_board.black_kings.set_index(square_index),
                     number if ('1'..='8').contains(&number) => {
                         // we subtract on from whatever number we parse b/c we anyway update the file var at the end of each iteration
-                        file += number.to_digit(10).expect(&format!("[error] parsing what is assusmed to be digit failed digit: {number} [this should not happen]")) as usize- 1;
+                        file += number.to_digit(10).unwrap_or_else(|| panic!("[error] parsing what is assusmed to be digit failed digit: {number} [this should not happen]")) as usize- 1;
                     }
                     'R' => new_board.white_rooks.set_index(square_index),
                     'P' => new_board.white_pawns.set_index(square_index),
@@ -452,7 +461,7 @@ impl FromStr for CastlingRights {
                 invalid => return Err(CastlingParseError::InvalidCharacter(invalid)),
             }
         }
-        return Ok(ret);
+        Ok(ret)
     }
 }
 
@@ -603,7 +612,7 @@ const CHAR_PIECES: [i32; 115] = {
 };
 
 pub fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
-    if !(pos_str.len() == 2) {
+    if pos_str.len() != 2 {
         return Err(PositionParseError::PositionStringToLong);
     }
     let individual_parts = pos_str.as_bytes();
@@ -618,7 +627,7 @@ pub fn pos_to_index(pos_str: &str) -> Result<usize, PositionParseError> {
         '1'..='8' => individual_parts[1] as usize - 49,
         invalid_file => return Err(PositionParseError::InvalidFileChar(invalid_file)),
     };
-    return Ok(rank * 8 + file);
+    Ok(rank * 8 + file)
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

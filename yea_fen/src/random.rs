@@ -23,7 +23,7 @@ fn get_random_number_u64() -> u64 {
     n4 = get_random_number_u32() as u64 & 0xFFFF;
 
     // return random number
-    return n1 | (n2 << 16) | (n3 << 32) | (n4 << 48);
+    n1 | (n2 << 16) | (n3 << 32) | (n4 << 48)
 }
 
 pub fn generate_magic_number() -> u64 {
