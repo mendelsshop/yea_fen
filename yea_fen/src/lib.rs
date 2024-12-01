@@ -648,6 +648,16 @@ pub enum Color {
     White = 0,
     Black = 1,
 }
+impl Not for Color {
+    type Output = Color;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Self::White => Self::Black,
+            Self::Black => Self::White,
+        }
+    }
+}
 
 impl FromStr for Color {
     // TODO: return string of invalid color instead of nothing upon invalid color specification

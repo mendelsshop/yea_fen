@@ -1,8 +1,8 @@
 use std::usize;
 
 use crate::{
-    black, pop_bit, random::generate_magic_number, white, BitBoard, Board, Color, GameState, Piece,
-    BISHOP_ATTACKS, ROOK_ATTACKS,
+    b1, b8, black, c1, c8, d1, d8, e1, e8, f1, f8, g1, g8, pop_bit, random::generate_magic_number,
+    white, BitBoard, Board, Color, GameState, Piece, BISHOP_ATTACKS, ROOK_ATTACKS,
 };
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
@@ -680,24 +680,30 @@ pub enum MoveType {
     Capture,
     Normal,
     EnPassant,
+    Castle,
 }
-pub struct Move(usize, usize, MoveType, Option<Piece>);
+pub struct Move {
+    source: usize,
+    destintation: usize,
+    move_type: MoveType,
+    promotion: Option<Piece>,
+}
 
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{:?}:{}{}{}",
-            self.2,
-            crate::index_to_position(self.0),
-            crate::index_to_position(self.1),
-            self.3.map_or_else(String::new, |p| p.to_string())
+            self.move_type,
+            crate::index_to_position(self.source),
+            crate::index_to_position(self.destintation),
+            self.promotion.map_or_else(String::new, |p| p.to_string())
         )
     }
 }
 
 impl Board {
-    // is the given square attacked with the given color attacked by the other side
+    /// is a piece at a position (square) attacked by the opposite color
     fn is_square_attacked(&self, square: usize, color: Color) -> bool {
         if color == Color::White
             && (PAWN_ATTACKS[black as usize][square] & self.white_pawns).board != 0
@@ -822,43 +828,48 @@ impl GameState {
             if in_board(target_square) && !self.board.all.exists(target_square) {
                 // pawn promotion
                 if promotion_range.contains(&(source_square as i32)) {
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Normal,
-                        Some(Piece::Rook),
-                    ));
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Normal,
-                        Some(Piece::Knight),
-                    ));
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Normal,
-                        Some(Piece::Bishop),
-                    ));
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Normal,
-                        Some(Piece::Queen),
-                    ));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: Some(Piece::Rook),
+                    });
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: Some(Piece::Knight),
+                    });
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: Some(Piece::Bishop),
+                    });
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: Some(Piece::Queen),
+                    });
                 }
                 // double pawn move
                 else {
-                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: None,
+                    });
                     if two_move_range.contains(&(source_square as i32))
                         && !self.board.all.exists(next_rank(target_square, 8))
                     {
-                        moves.push(Move(
-                            source_square,
-                            next_rank(target_square, 8),
-                            MoveType::Normal,
-                            None,
-                        ));
+                        moves.push(Move {
+                            source: source_square,
+                            destintation: next_rank(target_square, 8),
+                            move_type: MoveType::Normal,
+                            promotion: None,
+                        });
                     }
                 }
             }
@@ -866,32 +877,37 @@ impl GameState {
             while attacks.board != 0 {
                 let target_square = attacks.least_significant_first_bit_index() as usize;
                 if promotion_range.contains(&(source_square as i32)) {
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Capture,
-                        Some(Piece::Rook),
-                    ));
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Capture,
-                        Some(Piece::Knight),
-                    ));
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Capture,
-                        Some(Piece::Bishop),
-                    ));
-                    moves.push(Move(
-                        source_square,
-                        target_square,
-                        MoveType::Capture,
-                        Some(Piece::Queen),
-                    ));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: Some(Piece::Rook),
+                    });
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: Some(Piece::Knight),
+                    });
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: Some(Piece::Bishop),
+                    });
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: Some(Piece::Queen),
+                    });
                 } else {
-                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
 
                 attacks.remove_index(target_square)
@@ -903,12 +919,12 @@ impl GameState {
                     let target_en_pessant =
                         en_pessant_attacks.least_significant_first_bit_index() as usize;
 
-                    moves.push(Move(
-                        source_square,
-                        target_en_pessant,
-                        MoveType::Capture,
-                        None,
-                    ));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_en_pessant,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
             }
             bitboard.remove_index(source_square)
@@ -917,11 +933,53 @@ impl GameState {
     fn generate_castle_moves(&self, color: Color, moves: &mut Vec<Move>) {
         let occupancy = self.board.all;
         if color == Color::White {
-            if self.castling_rights.is_king_side_white() {}
-            if self.castling_rights.is_queen_side_white() {}
+            if self.castling_rights.is_king_side_white() && occupancy.get_index(f1 as usize) != 0
+                    && occupancy.get_index(g1 as usize) != 0
+                    && self.board.is_square_attacked(f1 as usize, !color)
+                    && self.board.is_square_attacked(g1 as usize, !color) && self.board.is_square_attacked(e1 as usize, !color) {
+                moves.push(Move {
+                    source: e1 as usize,
+                    destintation: g1 as usize,
+                    move_type: MoveType::Castle,
+                    promotion: None,
+                });
+            }
+            if self.castling_rights.is_queen_side_white() && occupancy.get_index(b1 as usize) != 0
+                    && occupancy.get_index(c1 as usize) != 0
+                    && occupancy.get_index(d1 as usize) != 0
+                    && self.board.is_square_attacked(b1 as usize, !color)
+                    && self.board.is_square_attacked(e1 as usize, !color) && self.board.is_square_attacked(c1 as usize, !color) {
+                moves.push(Move {
+                    source: e1 as usize,
+                    destintation: c1 as usize,
+                    move_type: MoveType::Castle,
+                    promotion: None,
+                });
+            }
         } else {
-            if self.castling_rights.is_king_side_black() {}
-            if self.castling_rights.is_king_side_black() {}
+            if self.castling_rights.is_king_side_black() && occupancy.get_index(f8 as usize) != 0
+                    && occupancy.get_index(g8 as usize) != 0
+                    && self.board.is_square_attacked(f8 as usize, !color)
+                    && self.board.is_square_attacked(g8 as usize, !color) && self.board.is_square_attacked(e8 as usize, !color) {
+                moves.push(Move {
+                    source: e8 as usize,
+                    destintation: g8 as usize,
+                    move_type: MoveType::Castle,
+                    promotion: None,
+                });
+            }
+            if self.castling_rights.is_king_side_black() && occupancy.get_index(b8 as usize) != 0
+                    && occupancy.get_index(c8 as usize) != 0
+                    && occupancy.get_index(d8 as usize) != 0
+                    && self.board.is_square_attacked(b8 as usize, !color)
+                    && self.board.is_square_attacked(e8 as usize, !color) && self.board.is_square_attacked(c8 as usize, !color) {
+                moves.push(Move {
+                    source: e8 as usize,
+                    destintation: c8 as usize,
+                    move_type: MoveType::Castle,
+                    promotion: None,
+                });
+            }
         }
     }
     fn generate_bishop_moves(&self, color: Color, moves: &mut Vec<Move>) {
@@ -955,9 +1013,19 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: None,
+                    });
                 } else {
-                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
                 attacks.remove_index(target_square)
             }
@@ -990,9 +1058,19 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: None,
+                    });
                 } else {
-                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
                 attacks.remove_index(target_square)
             }
@@ -1030,9 +1108,19 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: None,
+                    });
                 } else {
-                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
                 attacks.remove_index(target_square)
             }
@@ -1070,9 +1158,19 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: None,
+                    });
                 } else {
-                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
                 attacks.remove_index(target_square)
             }
@@ -1108,9 +1206,19 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Normal,
+                        promotion: None,
+                    });
                 } else {
-                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                    moves.push(Move {
+                        source: source_square,
+                        destintation: target_square,
+                        move_type: MoveType::Capture,
+                        promotion: None,
+                    });
                 }
                 attacks.remove_index(target_square)
             }
