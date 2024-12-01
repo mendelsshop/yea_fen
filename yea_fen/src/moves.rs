@@ -914,7 +914,16 @@ impl GameState {
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_castle_moves(&self) {}
+    fn generate_castle_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let occupancy = self.board.all;
+        if color == Color::White {
+            if self.castling_rights.is_king_side_white() {}
+            if self.castling_rights.is_queen_side_white() {}
+        } else {
+            if self.castling_rights.is_king_side_black() {}
+            if self.castling_rights.is_king_side_black() {}
+        }
+    }
     fn generate_bishop_moves(&self, color: Color, moves: &mut Vec<Move>) {
         let mut bitboard = self.board[(color, Piece::Bishop)];
 
@@ -1111,13 +1120,13 @@ impl GameState {
     fn generate_moves(&self, color: Color) -> Vec<Move> {
         let mut moves = vec![];
         self.generate_pawn_moves(color, &mut moves);
+        self.generate_castle_moves(color, &mut moves);
         self.generate_rook_moves(color, &mut moves);
         self.generate_king_moves(color, &mut moves);
         self.generate_bishop_moves(color, &mut moves);
         self.generate_knights_moves(color, &mut moves);
         moves
     }
-    // add code here
 }
 #[cfg(test)]
 mod tests {

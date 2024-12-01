@@ -412,6 +412,18 @@ impl CastlingRights {
         self
     }
 
+    pub fn is_king_side_black(&self) -> bool {
+        self.inner & 4 == 0
+    }
+    pub fn is_queen_side_black(&self) -> bool {
+        self.inner & 8 == 0
+    }
+    pub fn is_king_side_white(&self) -> bool {
+        self.inner & 1 == 0
+    }
+    pub fn is_queen_side_white(&self) -> bool {
+        self.inner & 2 == 0
+    }
     pub fn build_all() -> Self {
         Self::default()
             .build_king_side_black()
