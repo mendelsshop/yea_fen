@@ -1,8 +1,8 @@
 use std::usize;
 
 use crate::{
-    black, pop_bit, random::generate_magic_number, white, BitBoard, Board,
-    Color, GameState, Piece, BISHOP_ATTACKS, ROOK_ATTACKS,
+    black, pop_bit, random::generate_magic_number, white, BitBoard, Board, Color, GameState, Piece,
+    BISHOP_ATTACKS, ROOK_ATTACKS,
 };
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
@@ -915,13 +915,51 @@ impl GameState {
         }
     }
     fn generate_castle_moves(&self) {}
-    fn generate_bishop_moves(&self) {}
+    fn generate_bishop_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let mut bitboard = self.board[(color, Piece::Bishop)];
+
+        let occupancy = match color {
+            Color::White => self.board.black,
+            Color::Black => self.board.white,
+        };
+        // go through all color knights
+        while bitboard.board != 0 {
+            let source_square = bitboard.least_significant_first_bit_index() as usize;
+            let attacks = get_bishop_attacks(source_square, occupancy);
+            // filter out moves that would be illegal because a piece of our own is on that square
+            // we do this by anding the possible attacks with whatever pieces are not occupied by us
+            let mut attacks = attacks
+                & !if color == Color::Black {
+                    self.board.black
+                } else {
+                    self.board.white
+                };
+
+            while attacks.board != 0 {
+                let target_square = attacks.least_significant_first_bit_index() as usize;
+
+                if if color == Color::Black {
+                    self.board.white
+                } else {
+                    self.board.black
+                }
+                .get_index(target_square)
+                    == 0
+                {
+                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                } else {
+                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                }
+                attacks.remove_index(target_square)
+            }
+            bitboard.remove_index(source_square)
+        }
+    }
     fn generate_knights_moves(&self, color: Color, moves: &mut Vec<Move>) {
         let mut bitboard = self.board[(color, Piece::Knight)];
         // go through all color knights
         while bitboard.board != 0 {
             let source_square = bitboard.least_significant_first_bit_index() as usize;
-            // find all possilbe attack squares for the knight at that possiton
             let attacks = KNIGHT_ATTACKS[source_square];
             // filter out moves that would be illegal because a piece of our own is on that square
             // we do this by anding the possible attacks with whatever pieces are not occupied by us
@@ -952,12 +990,130 @@ impl GameState {
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_rook_moves(&self, color: Color) {}
-    fn generate_queen_moves(&self, color: Color) {}
-    fn generate_king_moves(&self, color: Color) {}
+    fn generate_rook_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let mut bitboard = self.board[(color, Piece::Rook)];
+
+        let occupancy = match color {
+            Color::White => self.board.black,
+            Color::Black => self.board.white,
+        };
+        // go through all color knights
+        while bitboard.board != 0 {
+            let source_square = bitboard.least_significant_first_bit_index() as usize;
+            let attacks = get_rook_attacks(source_square, occupancy);
+            // filter out moves that would be illegal because a piece of our own is on that square
+            // we do this by anding the possible attacks with whatever pieces are not occupied by us
+            let mut attacks = attacks
+                & !if color == Color::Black {
+                    self.board.black
+                } else {
+                    self.board.white
+                };
+
+            while attacks.board != 0 {
+                let target_square = attacks.least_significant_first_bit_index() as usize;
+
+                if if color == Color::Black {
+                    self.board.white
+                } else {
+                    self.board.black
+                }
+                .get_index(target_square)
+                    == 0
+                {
+                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                } else {
+                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                }
+                attacks.remove_index(target_square)
+            }
+            bitboard.remove_index(source_square)
+        }
+    }
+    fn generate_queen_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let mut bitboard = self.board[(color, Piece::Queen)];
+
+        let occupancy = match color {
+            Color::White => self.board.black,
+            Color::Black => self.board.white,
+        };
+        // go through all color knights
+        while bitboard.board != 0 {
+            let source_square = bitboard.least_significant_first_bit_index() as usize;
+            let attacks = get_queen_attacks(source_square, occupancy);
+            // filter out moves that would be illegal because a piece of our own is on that square
+            // we do this by anding the possible attacks with whatever pieces are not occupied by us
+            let mut attacks = attacks
+                & !if color == Color::Black {
+                    self.board.black
+                } else {
+                    self.board.white
+                };
+
+            while attacks.board != 0 {
+                let target_square = attacks.least_significant_first_bit_index() as usize;
+
+                if if color == Color::Black {
+                    self.board.white
+                } else {
+                    self.board.black
+                }
+                .get_index(target_square)
+                    == 0
+                {
+                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                } else {
+                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                }
+                attacks.remove_index(target_square)
+            }
+            bitboard.remove_index(source_square)
+        }
+    }
+    // TODO: most of the generate_*_moves are bascially the same besides for the piece, maybe make
+    // a macro or higher order function
+    fn generate_king_moves(&self, color: Color, moves: &mut Vec<Move>) {
+        let mut bitboard = self.board[(color, Piece::King)];
+
+        // go through all color knights
+        while bitboard.board != 0 {
+            let source_square = bitboard.least_significant_first_bit_index() as usize;
+            let attacks = KING_ATTACKS[source_square];
+            // filter out moves that would be illegal because a piece of our own is on that square
+            // we do this by anding the possible attacks with whatever pieces are not occupied by us
+            let mut attacks = attacks
+                & !if color == Color::Black {
+                    self.board.black
+                } else {
+                    self.board.white
+                };
+
+            while attacks.board != 0 {
+                let target_square = attacks.least_significant_first_bit_index() as usize;
+
+                if if color == Color::Black {
+                    self.board.white
+                } else {
+                    self.board.black
+                }
+                .get_index(target_square)
+                    == 0
+                {
+                    moves.push(Move(source_square, target_square, MoveType::Normal, None));
+                } else {
+                    moves.push(Move(source_square, target_square, MoveType::Capture, None));
+                }
+                attacks.remove_index(target_square)
+            }
+            bitboard.remove_index(source_square)
+        }
+    }
     fn generate_moves(&self, color: Color) -> Vec<Move> {
         let mut moves = vec![];
         self.generate_pawn_moves(color, &mut moves);
+        self.generate_rook_moves(color, &mut moves);
+        self.generate_king_moves(color, &mut moves);
+        self.generate_bishop_moves(color, &mut moves);
         self.generate_knights_moves(color, &mut moves);
         moves
     }
