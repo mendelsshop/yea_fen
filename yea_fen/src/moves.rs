@@ -2,7 +2,7 @@ use std::usize;
 
 use crate::{
     b1, b8, black, c1, c8, d1, d8, e1, e8, f1, f8, g1, g8, pop_bit, random::generate_magic_number,
-    white, BitBoard, Board, Color, GameState, Piece, BISHOP_ATTACKS, ROOK_ATTACKS,
+    white, BitBoard, Board, Color, GameState, Piece, BISHOP_ATTACKS, ROOK_ATTACKS, UNICODE_PIECES,
 };
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
@@ -688,6 +688,79 @@ pub struct Move {
     move_type: MoveType,
     promotion: Option<Piece>,
 }
+#[derive(Debug, Clone, Copy)]
+pub struct MoveBinary(u32);
+impl MoveBinary {
+    pub const fn new(
+        source: usize,
+        target: usize,
+        piece: usize,
+        promoted: usize,
+        capture: usize,
+        double: usize,
+        en_pessant: usize,
+        castling: usize,
+    ) -> Self {
+        Self(
+            (source
+                | (target << 6)
+                | (piece << 12)
+                | (promoted << 16)
+                | (capture << 20)
+                | (double << 21)
+                | (en_pessant << 22)
+                | (castling << 23)) as u32,
+        )
+    }
+
+    pub const fn get_source(self) -> usize {
+        (self.0 & 0x3f) as usize
+    }
+    pub const fn get_target(self) -> usize {
+        (self.0 & 0xfc0 ) as usize >> 6
+    }
+    pub const fn get_piece(self) -> usize {
+        (self.0 & 0xf000) as usize >> 12
+    }
+    pub const fn get_promoted(self) -> usize {
+        (self.0 & 0xf0000) as usize >> 16
+    }
+    pub const fn get_capture(self) -> usize {
+        (self.0 & 0x100000) as usize 
+    }
+    pub const fn get_double(self) -> usize {
+        (self.0 & 0x200000) as usize
+    }
+    pub const fn get_en_pessant(self) -> usize {
+        (self.0 & 0x400000) as usize
+    }
+    pub const fn get_castling(self) -> usize {
+        (self.0 & 0x800000) as usize
+    }
+}
+
+// unicode pieces
+const UNICODE_PIECES_PROMOTION: [char; 12] = [
+    '\0', '♘', '♗', '♖', '♕', '♔', '\0', '♞', '♝', '♜', '♛', '♚',
+];
+impl std::fmt::Display for MoveBinary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}",
+            UNICODE_PIECES[self.get_piece()],
+            crate::index_to_position(self.get_source()),
+            crate::index_to_position(self.get_target()),
+            UNICODE_PIECES_PROMOTION[self.get_promoted()]
+        )
+    }
+}
+
+impl From<Move> for MoveBinary {
+    fn from(value: Move) -> Self {
+        todo!()
+    }
+}
 
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -933,10 +1006,13 @@ impl GameState {
     fn generate_castle_moves(&self, color: Color, moves: &mut Vec<Move>) {
         let occupancy = self.board.all;
         if color == Color::White {
-            if self.castling_rights.is_king_side_white() && occupancy.get_index(f1 as usize) != 0
-                    && occupancy.get_index(g1 as usize) != 0
-                    && self.board.is_square_attacked(f1 as usize, !color)
-                    && self.board.is_square_attacked(g1 as usize, !color) && self.board.is_square_attacked(e1 as usize, !color) {
+            if self.castling_rights.is_king_side_white()
+                && occupancy.get_index(f1 as usize) != 0
+                && occupancy.get_index(g1 as usize) != 0
+                && self.board.is_square_attacked(f1 as usize, !color)
+                && self.board.is_square_attacked(g1 as usize, !color)
+                && self.board.is_square_attacked(e1 as usize, !color)
+            {
                 moves.push(Move {
                     source: e1 as usize,
                     destintation: g1 as usize,
@@ -944,11 +1020,14 @@ impl GameState {
                     promotion: None,
                 });
             }
-            if self.castling_rights.is_queen_side_white() && occupancy.get_index(b1 as usize) != 0
-                    && occupancy.get_index(c1 as usize) != 0
-                    && occupancy.get_index(d1 as usize) != 0
-                    && self.board.is_square_attacked(b1 as usize, !color)
-                    && self.board.is_square_attacked(e1 as usize, !color) && self.board.is_square_attacked(c1 as usize, !color) {
+            if self.castling_rights.is_queen_side_white()
+                && occupancy.get_index(b1 as usize) != 0
+                && occupancy.get_index(c1 as usize) != 0
+                && occupancy.get_index(d1 as usize) != 0
+                && self.board.is_square_attacked(b1 as usize, !color)
+                && self.board.is_square_attacked(e1 as usize, !color)
+                && self.board.is_square_attacked(c1 as usize, !color)
+            {
                 moves.push(Move {
                     source: e1 as usize,
                     destintation: c1 as usize,
@@ -957,10 +1036,13 @@ impl GameState {
                 });
             }
         } else {
-            if self.castling_rights.is_king_side_black() && occupancy.get_index(f8 as usize) != 0
-                    && occupancy.get_index(g8 as usize) != 0
-                    && self.board.is_square_attacked(f8 as usize, !color)
-                    && self.board.is_square_attacked(g8 as usize, !color) && self.board.is_square_attacked(e8 as usize, !color) {
+            if self.castling_rights.is_king_side_black()
+                && occupancy.get_index(f8 as usize) != 0
+                && occupancy.get_index(g8 as usize) != 0
+                && self.board.is_square_attacked(f8 as usize, !color)
+                && self.board.is_square_attacked(g8 as usize, !color)
+                && self.board.is_square_attacked(e8 as usize, !color)
+            {
                 moves.push(Move {
                     source: e8 as usize,
                     destintation: g8 as usize,
@@ -968,11 +1050,14 @@ impl GameState {
                     promotion: None,
                 });
             }
-            if self.castling_rights.is_king_side_black() && occupancy.get_index(b8 as usize) != 0
-                    && occupancy.get_index(c8 as usize) != 0
-                    && occupancy.get_index(d8 as usize) != 0
-                    && self.board.is_square_attacked(b8 as usize, !color)
-                    && self.board.is_square_attacked(e8 as usize, !color) && self.board.is_square_attacked(c8 as usize, !color) {
+            if self.castling_rights.is_king_side_black()
+                && occupancy.get_index(b8 as usize) != 0
+                && occupancy.get_index(c8 as usize) != 0
+                && occupancy.get_index(d8 as usize) != 0
+                && self.board.is_square_attacked(b8 as usize, !color)
+                && self.board.is_square_attacked(e8 as usize, !color)
+                && self.board.is_square_attacked(c8 as usize, !color)
+            {
                 moves.push(Move {
                     source: e8 as usize,
                     destintation: c8 as usize,
