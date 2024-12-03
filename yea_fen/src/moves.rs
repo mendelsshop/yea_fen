@@ -2,7 +2,9 @@ use std::usize;
 
 use crate::{
     b1, b8, black, c1, c8, d1, d8, e1, e8, f1, f8, g1, g8, pop_bit, random::generate_magic_number,
-    white, BitBoard, Board, Color, GameState, Piece, BISHOP_ATTACKS, ROOK_ATTACKS, UNICODE_PIECES,
+    white, BitBoard, Board, Color, GameState, Piece, BISHOP_ATTACKS, BLACK_BISHOP, BLACK_KING,
+    BLACK_NIGHT, BLACK_PAWN, BLACK_QUEEN, BLACK_ROOK, ROOK_ATTACKS, UNICODE_PIECES, WHITE_BISHOP,
+    WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK,
 };
 
 pub const NOT_H_FILE: BitBoard = BitBoard::new(9187201950435737471);
@@ -717,7 +719,7 @@ impl MoveBinary {
         (self.0 & 0x3f) as usize
     }
     pub const fn get_target(self) -> usize {
-        (self.0 & 0xfc0 ) as usize >> 6
+        (self.0 & 0xfc0) as usize >> 6
     }
     pub const fn get_piece(self) -> usize {
         (self.0 & 0xf000) as usize >> 12
@@ -726,7 +728,7 @@ impl MoveBinary {
         (self.0 & 0xf0000) as usize >> 16
     }
     pub const fn get_capture(self) -> usize {
-        (self.0 & 0x100000) as usize 
+        (self.0 & 0x100000) as usize
     }
     pub const fn get_double(self) -> usize {
         (self.0 & 0x200000) as usize
@@ -740,9 +742,8 @@ impl MoveBinary {
 }
 
 // unicode pieces
-const UNICODE_PIECES_PROMOTION: [char; 12] = [
-    '\0', '♘', '♗', '♖', '♕', '♔', '\0', '♞', '♝', '♜', '♛', '♚',
-];
+const UNICODE_PIECES_PROMOTION: [char; 12] =
+    ['\0', '♘', '♗', '♖', '♕', '♔', '\0', '♞', '♝', '♜', '♛', '♚'];
 impl std::fmt::Display for MoveBinary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -871,7 +872,7 @@ impl Board {
     }
 }
 impl GameState {
-    fn generate_pawn_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_pawn_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::Pawn)];
         let (next_rank, promotion_range, two_move_range, in_board, occupancy): (
             fn(usize, usize) -> usize,
@@ -901,48 +902,149 @@ impl GameState {
             if in_board(target_square) && !self.board.all.exists(target_square) {
                 // pawn promotion
                 if promotion_range.contains(&(source_square as i32)) {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: Some(Piece::Rook),
-                    });
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: Some(Piece::Knight),
-                    });
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: Some(Piece::Bishop),
-                    });
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: Some(Piece::Queen),
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_NIGHT
+                        } else {
+                            WHITE_KNIGHT
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_BISHOP
+                        } else {
+                            WHITE_BISHOP
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_ROOK
+                        } else {
+                            WHITE_ROOK
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_QUEEN
+                        } else {
+                            WHITE_QUEEN
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: Some(Piece::Rook),
+                    // });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: Some(Piece::Knight),
+                    // });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: Some(Piece::Bishop),
+                    // });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: Some(Piece::Queen),
+                    // });
                 }
                 // double pawn move
                 else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    // promotion: None,
+                    //
+                    // });
                     if two_move_range.contains(&(source_square as i32))
                         && !self.board.all.exists(next_rank(target_square, 8))
                     {
-                        moves.push(Move {
-                            source: source_square,
-                            destintation: next_rank(target_square, 8),
-                            move_type: MoveType::Normal,
-                            promotion: None,
-                        });
+                        moves.push(MoveBinary::new(
+                            source_square,
+                            next_rank(target_square, 8),
+                            if color == Color::Black {
+                                BLACK_PAWN
+                            } else {
+                                WHITE_PAWN
+                            } as usize,
+                            0,
+                            0,
+                            1,
+                            0,
+                            0,
+                        ));
+                        // moves.push(Move {
+                        //     source: source_square,
+                        //     destintation: next_rank(target_square, 8),
+                        //     move_type: MoveType::Normal,
+                        //     promotion: None,
+                        // });
                     }
                 }
             }
@@ -950,37 +1052,124 @@ impl GameState {
             while attacks.board != 0 {
                 let target_square = attacks.least_significant_first_bit_index() as usize;
                 if promotion_range.contains(&(source_square as i32)) {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: Some(Piece::Rook),
-                    });
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: Some(Piece::Knight),
-                    });
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: Some(Piece::Bishop),
-                    });
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: Some(Piece::Queen),
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_NIGHT
+                        } else {
+                            WHITE_KNIGHT
+                        } as usize,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_BISHOP
+                        } else {
+                            WHITE_BISHOP
+                        } as usize,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_ROOK
+                        } else {
+                            WHITE_ROOK
+                        } as usize,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        if color == Color::Black {
+                            BLACK_QUEEN
+                        } else {
+                            WHITE_QUEEN
+                        } as usize,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: Some(Piece::Rook),
+                    // });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: Some(Piece::Knight),
+                    // });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: Some(Piece::Bishop),
+                    // });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: Some(Piece::Queen),
+                    // });
                 } else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
                 }
 
                 attacks.remove_index(target_square)
@@ -991,19 +1180,32 @@ impl GameState {
                 if en_pessant_attacks.board != 0 {
                     let target_en_pessant =
                         en_pessant_attacks.least_significant_first_bit_index() as usize;
-
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_en_pessant,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_en_pessant,
+                        if color == Color::Black {
+                            BLACK_PAWN
+                        } else {
+                            WHITE_PAWN
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0,
+                    ))
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_en_pessant,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
                 }
             }
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_castle_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_castle_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let occupancy = self.board.all;
         if color == Color::White {
             if self.castling_rights.is_king_side_white()
@@ -1013,12 +1215,22 @@ impl GameState {
                 && self.board.is_square_attacked(g1 as usize, !color)
                 && self.board.is_square_attacked(e1 as usize, !color)
             {
-                moves.push(Move {
-                    source: e1 as usize,
-                    destintation: g1 as usize,
-                    move_type: MoveType::Castle,
-                    promotion: None,
-                });
+                moves.push(MoveBinary::new(
+                    e1 as usize,
+                    g1 as usize,
+                    WHITE_KING as usize,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                ));
+                // moves.push(Move {
+                //     source: e1 as usize,
+                //     destintation: g1 as usize,
+                //     move_type: MoveType::Castle,
+                //     promotion: None,
+                // });
             }
             if self.castling_rights.is_queen_side_white()
                 && occupancy.get_index(b1 as usize) != 0
@@ -1028,12 +1240,23 @@ impl GameState {
                 && self.board.is_square_attacked(e1 as usize, !color)
                 && self.board.is_square_attacked(c1 as usize, !color)
             {
-                moves.push(Move {
-                    source: e1 as usize,
-                    destintation: c1 as usize,
-                    move_type: MoveType::Castle,
-                    promotion: None,
-                });
+                moves.push(MoveBinary::new(
+                    e1 as usize,
+                    c1 as usize,
+                    WHITE_KING as usize,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                ));
+
+                // moves.push(Move {
+                //     source: e1 as usize,
+                //     destintation: c1 as usize,
+                //     move_type: MoveType::Castle,
+                //     promotion: None,
+                // });
             }
         } else {
             if self.castling_rights.is_king_side_black()
@@ -1043,12 +1266,22 @@ impl GameState {
                 && self.board.is_square_attacked(g8 as usize, !color)
                 && self.board.is_square_attacked(e8 as usize, !color)
             {
-                moves.push(Move {
-                    source: e8 as usize,
-                    destintation: g8 as usize,
-                    move_type: MoveType::Castle,
-                    promotion: None,
-                });
+                moves.push(MoveBinary::new(
+                    e8 as usize,
+                    g8 as usize,
+                    BLACK_KING as usize,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                ));
+                // moves.push(Move {
+                //     source: e8 as usize,
+                //     destintation: g8 as usize,
+                //     move_type: MoveType::Castle,
+                //     promotion: None,
+                // });
             }
             if self.castling_rights.is_king_side_black()
                 && occupancy.get_index(b8 as usize) != 0
@@ -1058,12 +1291,22 @@ impl GameState {
                 && self.board.is_square_attacked(e8 as usize, !color)
                 && self.board.is_square_attacked(c8 as usize, !color)
             {
-                moves.push(Move {
-                    source: e8 as usize,
-                    destintation: c8 as usize,
-                    move_type: MoveType::Castle,
-                    promotion: None,
-                });
+                moves.push(MoveBinary::new(
+                    e8 as usize,
+                    c8 as usize,
+                    BLACK_KING as usize,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                ));
+                // moves.push(Move {
+                //     source: e8 as usize,
+                //     destintation: c8 as usize,
+                //     move_type: MoveType::Castle,
+                //     promotion: None,
+                // });
             }
         }
     }
@@ -1162,7 +1405,7 @@ impl GameState {
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_rook_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_rook_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::Rook)];
 
         let occupancy = match color {
@@ -1193,19 +1436,47 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_ROOK
+                        } else {
+                            BLACK_ROOK
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: None,
+                    // });
                 } else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_ROOK
+                        } else {
+                            BLACK_ROOK
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
                 }
                 attacks.remove_index(target_square)
             }
@@ -1310,14 +1581,14 @@ impl GameState {
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_moves(&self, color: Color) -> Vec<Move> {
+    fn generate_moves(&self, color: Color) -> Vec<MoveBinary> {
         let mut moves = vec![];
         self.generate_pawn_moves(color, &mut moves);
         self.generate_castle_moves(color, &mut moves);
         self.generate_rook_moves(color, &mut moves);
-        self.generate_king_moves(color, &mut moves);
-        self.generate_bishop_moves(color, &mut moves);
-        self.generate_knights_moves(color, &mut moves);
+        // self.generate_king_moves(color, &mut moves);
+        // self.generate_bishop_moves(color, &mut moves);
+        // self.generate_knights_moves(color, &mut moves);
         moves
     }
 }

@@ -559,7 +559,7 @@ macro_rules! c_enum {
     )*}};
 }
 
-c_enum!(P, N, B, R, Q, K, p, n, b, r, q, k);
+c_enum!(WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING, BLACK_PAWN, BLACK_NIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING);
 c_enum!(
     a8, b8, c8, d8, e8, f8, g8, h8, a7, b7, c7, d7, e7, f7, g7, h7, a6, b6, c6, d6, e6, f6, g6, h6,
     a5, b5, c5, d5, e5, f5, g5, h5, a4, b4, c4, d4, e4, f4, g4, h4, a3, b3, c3, d3, e3, f3, g3, h3,
@@ -608,18 +608,18 @@ macro_rules! c_init_array {
 
 const CHAR_PIECES: [i32; 115] = {
     let mut out = [-1; 115];
-    out['P' as usize] = P;
-    out['N' as usize] = N;
-    out['B' as usize] = B;
-    out['R' as usize] = R;
-    out['Q' as usize] = Q;
-    out['K' as usize] = K;
-    out['p' as usize] = p;
-    out['n' as usize] = n;
-    out['b' as usize] = b;
-    out['r' as usize] = r;
-    out['q' as usize] = q;
-    out['k' as usize] = k;
+    out['P' as usize] = WHITE_PAWN;
+    out['N' as usize] = WHITE_KNIGHT;
+    out['B' as usize] = WHITE_BISHOP;
+    out['R' as usize] = WHITE_ROOK;
+    out['Q' as usize] = WHITE_QUEEN;
+    out['K' as usize] = WHITE_KING;
+    out['p' as usize] = BLACK_PAWN;
+    out['n' as usize] = BLACK_NIGHT;
+    out['b' as usize] = BLACK_BISHOP;
+    out['r' as usize] = BLACK_ROOK;
+    out['q' as usize] = BLACK_QUEEN;
+    out['k' as usize] = BLACK_KING;
     out
 };
 
