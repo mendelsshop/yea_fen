@@ -1313,10 +1313,7 @@ impl GameState {
     fn generate_bishop_moves(&self, color: Color, moves: &mut Vec<Move>) {
         let mut bitboard = self.board[(color, Piece::Bishop)];
 
-        let occupancy = match color {
-            Color::White => self.board.black,
-            Color::Black => self.board.white,
-        };
+        let occupancy = self.board.all;
         // go through all color knights
         while bitboard.board != 0 {
             let source_square = bitboard.least_significant_first_bit_index() as usize;
@@ -1408,10 +1405,7 @@ impl GameState {
     fn generate_rook_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::Rook)];
 
-        let occupancy = match color {
-            Color::White => self.board.black,
-            Color::Black => self.board.white,
-        };
+        let occupancy = self.board.all;
         // go through all color knights
         while bitboard.board != 0 {
             let source_square = bitboard.least_significant_first_bit_index() as usize;
@@ -1486,10 +1480,7 @@ impl GameState {
     fn generate_queen_moves(&self, color: Color, moves: &mut Vec<Move>) {
         let mut bitboard = self.board[(color, Piece::Queen)];
 
-        let occupancy = match color {
-            Color::White => self.board.black,
-            Color::Black => self.board.white,
-        };
+        let occupancy = self.board.all;
         // go through all color knights
         while bitboard.board != 0 {
             let source_square = bitboard.least_significant_first_bit_index() as usize;
