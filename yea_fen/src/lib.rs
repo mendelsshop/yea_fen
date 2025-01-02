@@ -336,7 +336,7 @@ pub enum BoardParseError {
     TooFewFiles,
 }
 
-#[derive(Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct GameState {
     board: Board,
     side_to_move: Color,
@@ -569,7 +569,7 @@ c_enum!(
     WHITE_QUEEN,
     WHITE_KING,
     BLACK_PAWN,
-    BLACK_NIGHT,
+    BLACK_KNIGHT,
     BLACK_BISHOP,
     BLACK_ROOK,
     BLACK_QUEEN,
@@ -630,7 +630,7 @@ const CHAR_PIECES: [i32; 115] = {
     out['Q' as usize] = WHITE_QUEEN;
     out['K' as usize] = WHITE_KING;
     out['p' as usize] = BLACK_PAWN;
-    out['n' as usize] = BLACK_NIGHT;
+    out['n' as usize] = BLACK_KNIGHT;
     out['b' as usize] = BLACK_BISHOP;
     out['r' as usize] = BLACK_ROOK;
     out['q' as usize] = BLACK_QUEEN;

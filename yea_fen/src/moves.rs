@@ -3,7 +3,7 @@ use std::usize;
 use crate::{
     b1, b8, black, c1, c8, d1, d8, e1, e8, f1, f8, g1, g8, pop_bit, random::generate_magic_number,
     white, BitBoard, Board, Color, GameState, Piece, BISHOP_ATTACKS, BLACK_BISHOP, BLACK_KING,
-    BLACK_NIGHT, BLACK_PAWN, BLACK_QUEEN, BLACK_ROOK, ROOK_ATTACKS, UNICODE_PIECES, WHITE_BISHOP,
+    BLACK_KNIGHT, BLACK_PAWN, BLACK_QUEEN, BLACK_ROOK, ROOK_ATTACKS, UNICODE_PIECES, WHITE_BISHOP,
     WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK,
 };
 
@@ -911,7 +911,7 @@ impl GameState {
                             WHITE_PAWN
                         } as usize,
                         if color == Color::Black {
-                            BLACK_NIGHT
+                            BLACK_KNIGHT
                         } else {
                             WHITE_KNIGHT
                         } as usize,
@@ -1061,7 +1061,7 @@ impl GameState {
                             WHITE_PAWN
                         } as usize,
                         if color == Color::Black {
-                            BLACK_NIGHT
+                            BLACK_KNIGHT
                         } else {
                             WHITE_KNIGHT
                         } as usize,
@@ -1310,7 +1310,7 @@ impl GameState {
             }
         }
     }
-    fn generate_bishop_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_bishop_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::Bishop)];
 
         let occupancy = self.board.all;
@@ -1338,26 +1338,54 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_BISHOP
+                        } else {
+                            BLACK_BISHOP
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: None,
+                    // });
                 } else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_BISHOP
+                        } else {
+                            BLACK_BISHOP
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
                 }
                 attacks.remove_index(target_square)
             }
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_knights_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_knights_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::Knight)];
         // go through all color knights
         while bitboard.board != 0 {
@@ -1383,19 +1411,47 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: None,
-                    });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: None,
+                    // });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_KNIGHT
+                        } else {
+                            BLACK_KNIGHT
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
                 } else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_KNIGHT
+                        } else {
+                            BLACK_KNIGHT
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
                 }
                 attacks.remove_index(target_square)
             }
@@ -1477,7 +1533,7 @@ impl GameState {
             bitboard.remove_index(source_square)
         }
     }
-    fn generate_queen_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_queen_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::Queen)];
 
         let occupancy = self.board.all;
@@ -1505,19 +1561,47 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_QUEEN
+                        } else {
+                            BLACK_QUEEN
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: None,
+                    // });
                 } else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_QUEEN
+                        } else {
+                            BLACK_QUEEN
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
                 }
                 attacks.remove_index(target_square)
             }
@@ -1526,7 +1610,7 @@ impl GameState {
     }
     // TODO: most of the generate_*_moves are bascially the same besides for the piece, maybe make
     // a macro or higher order function
-    fn generate_king_moves(&self, color: Color, moves: &mut Vec<Move>) {
+    fn generate_king_moves(&self, color: Color, moves: &mut Vec<MoveBinary>) {
         let mut bitboard = self.board[(color, Piece::King)];
 
         // go through all color knights
@@ -1553,19 +1637,49 @@ impl GameState {
                 .get_index(target_square)
                     == 0
                 {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Normal,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_KING
+                        } else {
+                            BLACK_KING
+                        } as usize,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ));
+
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Normal,
+                    //     promotion: None,
+                    // });
                 } else {
-                    moves.push(Move {
-                        source: source_square,
-                        destintation: target_square,
-                        move_type: MoveType::Capture,
-                        promotion: None,
-                    });
+                    moves.push(MoveBinary::new(
+                        source_square,
+                        target_square,
+                        if color == Color::White {
+                            WHITE_KING
+                        } else {
+                            BLACK_KING
+                        } as usize,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ));
+
+                    // moves.push(Move {
+                    //     source: source_square,
+                    //     destintation: target_square,
+                    //     move_type: MoveType::Capture,
+                    //     promotion: None,
+                    // });
                 }
                 attacks.remove_index(target_square)
             }
@@ -1577,9 +1691,10 @@ impl GameState {
         self.generate_pawn_moves(color, &mut moves);
         self.generate_castle_moves(color, &mut moves);
         self.generate_rook_moves(color, &mut moves);
-        // self.generate_king_moves(color, &mut moves);
-        // self.generate_bishop_moves(color, &mut moves);
-        // self.generate_knights_moves(color, &mut moves);
+        self.generate_king_moves(color, &mut moves);
+        self.generate_bishop_moves(color, &mut moves);
+        self.generate_queen_moves(color, &mut moves);
+        self.generate_knights_moves(color, &mut moves);
         moves
     }
 }
